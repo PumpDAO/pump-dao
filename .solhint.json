@@ -1,0 +1,17 @@
+  {
+    "extends": "solhint:recommended",
+    "plugins": [],
+    "rules": {
+      "avoid-throw": false,
+      "avoid-suicide": "error",
+      "avoid-sha3": "warn",
+      "compiler-version": ["error","^0.8.0"],
+      "ordering": "warn",
+      "func-order": "warn",
+      "constructor-syntax": "warn",
+      "reentrancy": "warn",
+      "max-line-length": ["error",120],
+      "no-unused-vars": "warn"
+
+    }
+  }
