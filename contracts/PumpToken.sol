@@ -101,7 +101,10 @@ contract PumpToken is Ownable {
         @notice Set the address of the ElectionManager
         @param _electionManagerAddr the ElectionManager's address
      */
-    function setElectionManagerAddr(address _electionManagerAddr) public onlyOwner {
+    function setElectionManagerAddr(address _electionManagerAddr)
+        public
+        onlyOwner
+    {
         electionManagerAddr = _electionManagerAddr;
     }
 
