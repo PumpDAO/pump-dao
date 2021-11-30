@@ -149,7 +149,7 @@ contract PumpToken is Ownable {
         emit Transfer(_from, _to, _valueLessTax);
 
         if (tax > 0) {
-            balances[cannonAddr] = balances[cannonAddr];
+            balances[cannonAddr] = balances[cannonAddr] + tax;
             emit Transfer(_from, cannonAddr, tax);
         }
     }

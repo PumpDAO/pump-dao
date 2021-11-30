@@ -78,7 +78,7 @@ contract ElectionManager is Ownable {
         return proposal;
     }
 
-    function getWinner() public onlyOwner returns (ProposalMetadata memory) {
+    function getWinner() public returns (ProposalMetadata memory) {
         ProposalMetadata[] memory activeProposals = proposalsByElection[
             currentElectionIdx
         ];

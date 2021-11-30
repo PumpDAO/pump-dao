@@ -5,14 +5,14 @@ pragma abicoder v2;
 
 import "./ElectionManager.sol";
 import "./PumpToken.sol";
-import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter01.sol";
+import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract PSCannon is Ownable {
     ElectionManager electionManager;
     PumpToken pumpToken;
-    IPancakeRouter01 pancakeRouter;
+    IPancakeRouter02 pancakeRouter;
     address wBNBAddr;
     // Percent of cannon balance to roll into next voting period
     uint256 rolloverPercent = 1;
@@ -25,7 +25,7 @@ contract PSCannon is Ownable {
     ) {
         electionManager = ElectionManager(_electionManagerAddr);
         pumpToken = PumpToken(_pumpTokenAddr);
-        pancakeRouter = IPancakeRouter01(_pancakeRouterAddr);
+        pancakeRouter = IPancakeRouter02(_pancakeRouterAddr);
         wBNBAddr = _wBNBAddr;
     }
 
@@ -59,7 +59,7 @@ contract PSCannon is Ownable {
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = tokenOut;
-        pancakeRouter.swapExactTokensForTokens(
+        pancakeRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amount, // amountIn
             0, // amountOutMin
             path, // path
