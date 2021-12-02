@@ -50,10 +50,10 @@ contract ElectionManager is Ownable {
             !proposalExistsByElection[currentElectionIdx][_tokenToPumpAddr],
             "Proposal has already been created"
         );
-        require(
-            msg.value >= proposalCreationTax,
-            "Proposal creation tax not met. Please include enough ETH in call."
-        );
+//        require(
+//            msg.value >= proposalCreationTax,
+//            "Proposal creation tax not met. Please include enough ETH in call."
+//        );
 
         Proposal proposal = new Proposal(
             currentElectionIdx,
@@ -68,7 +68,7 @@ contract ElectionManager is Ownable {
         // Exclude PumpDAO transactions with the proposal address from cannon taxes
         pumpToken.excludeAddress(address(proposal));
         // Donate the proposalCreationTax to the cannon
-        PSCannon(cannonAddr).donateEth{value: msg.value}();
+//        PSCannon(cannonAddr).donateEth{value: msg.value}();
         emit ProposalCreated(
             msg.sender,
             currentElectionIdx,

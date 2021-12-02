@@ -24,7 +24,7 @@ contract PumpToken is Ownable {
     mapping(address => uint256) public balances;
     mapping(address => mapping(address => uint256)) public allowed;
 
-    event Transfer(address from, address to, uint256 value);
+    event Transfer(address indexed from, address to, uint256 value);
     event Approval(address owner, address spender, uint256 value);
 
     constructor() {

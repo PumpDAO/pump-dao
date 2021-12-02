@@ -37,13 +37,13 @@ contract PSCannon is Ownable {
     function fireCannon(uint256 amount) public onlyOwner returns (bool) {
         // TODO need to add timing (or size) requirements to this call
         address winningToken = electionManager.getWinner().tokenToPumpAddr;
-        require(address(this).balance > 0, "Cannon must have wBNB");
-        // TODO this is the wrong percent
+        // TODO this is the wrong percent and also isn't used
         uint256 fireAmount = SafeMath.div(
+            // This is the wrong amount
             SafeMath.mul(address(this).balance, rolloverPercent),
             100
         );
-        _performSwap(wBNBAddr, winningToken, fireAmount);
+        _performSwap(wBNBAddr, winningToken, amount);
         // TODO emit an event
         // TODO send to black hole
         return true;
