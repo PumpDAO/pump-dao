@@ -17,7 +17,7 @@ def deploy_vote_handler(pump_address, account):
 
 
 def create_proposal(vote_hanlder_address, erc20_address):
-    vote_handler = ElectionManager(vote_hanlder_address)
+    vote_handler = ElectionManager.at(vote_hanlder_address)
     return vote_handler.createProposal(erc20_address)
 
 
