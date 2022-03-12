@@ -68,7 +68,7 @@ contract ElectionManager is Ownable {
         // Exclude PumpDAO transactions with the proposal address from cannon taxes
         pumpToken.excludeAddress(address(proposal));
         // Donate the proposalCreationTax to the cannon
-//        PSCannon(cannonAddr).donateEth{value: msg.value}();
+        // PSCannon(cannonAddr).donateEth{value: msg.value}();
         emit ProposalCreated(
             msg.sender,
             currentElectionIdx,

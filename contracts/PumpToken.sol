@@ -9,7 +9,7 @@ contract PumpToken is Ownable {
     using SafeMath for uint256;
 
     string public symbol = "PUMP";
-    string public name = "PumpDao";
+    string public name = "Pump Token";
     uint256 public decimals = 18;
     uint256 public totalSupply = 100 * 10**6 * 10**18;
     address public cannonAddr;
