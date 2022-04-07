@@ -1,17 +1,11 @@
-pragma solidity ^0.8.0;
-
 // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
 import "./SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/**
-    @title Bare-bones Token implementation
-    @notice Based on the ERC-20 token standard as defined at
-            https://eips.ethereum.org/EIPS/eip-20
- */
-contract VPumpToken is Ownable {
 
+contract VPumpToken is Ownable {
     using SafeMath for uint256;
 
     string public symbol = "VPUMP";

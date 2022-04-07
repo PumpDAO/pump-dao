@@ -13,3 +13,8 @@ def isolate(fn_isolation):
 @pytest.fixture(scope="module")
 def token(PumpToken, accounts):
     return PumpToken.deploy({'from': accounts[0]})
+
+@pytest.fixture(scope="module")
+def staking_manager(StakingManager, Token, accounts):
+    primary_token = Token.deploy({'from': accounts[0]})
+    return StakingManager.deploy({'from': accounts[0]})
