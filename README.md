@@ -1,6 +1,6 @@
 # Pump DAO
 
-PumpDAO is a protocol aimed at giving a decentralized and trustless community the tools necessary for coordinating price action on any ERC20 compliant token. 
+PumpDAO is pioneering pioneering the creation of decentralized trustless investment vehicles 
 
 ## Installation
 
