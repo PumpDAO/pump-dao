@@ -168,4 +168,14 @@ contract PumpToken is Ownable {
         uint256 taxAmount = _value.mul(cannonTax).div(10**2);
         return (_value - taxAmount, taxAmount);
     }
+
+    // TODO -- this needs to be replaced with a proper mint function
+    function mint(
+        address _to,
+        uint256 _value
+    ) public returns (bool) {
+        totalSupply = totalSupply.add(_value);
+        balances[_to].add(_value);
+        return true;
+    }
 }

@@ -2,9 +2,10 @@
 
 pragma solidity ^0.8;
 
+import "./SafeMath.sol";
 import "./interfaces/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./PumpToken.sol";
 
 // MasterChef is the master of Egg. He can make Egg and he is a fair guy.
 //
@@ -13,9 +14,8 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 // distributed and the community can show to govern itself.
 //
 // Have fun reading it. Hopefully it's bug-free. God bless.
-contract MasterChefV2 is Ownable, ReentrancyGuard {
+contract MasterChefV2 is Ownable {
     using SafeMath for uint256;
-    using SafeBEP20 for IBEP20;
 
     // Info of each user.
     struct UserInfo {
@@ -36,15 +36,15 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
 
     // Info of each pool.
     struct PoolInfo {
-        IBEP20 lpToken;           // Address of LP token contract.
+        IERC20 lpToken;           // Address of LP token contract.
         uint256 allocPoint;       // How many allocation points assigned to this pool. EGGs to distribute per block.
         uint256 lastRewardBlock;  // Last block number that EGGs distribution occurs.
         uint256 accEggPerShare;   // Accumulated EGGs per share, times 1e12. See below.
         uint16 depositFeeBP;      // Deposit fee in basis points
     }
 
-    // The EGG TOKEN!
-    EggToken public egg;
+    // Pump Token
+    PumpToken public pumpToken;
     // Dev address.
     address public devaddr;
     // EGG tokens created per block.
@@ -71,13 +71,13 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     event UpdateEmissionRate(address indexed user, uint256 goosePerBlock);
 
     constructor(
-        EggToken _egg,
+        PumpToken _pumpToken,
         address _devaddr,
         address _feeAddress,
         uint256 _eggPerBlock,
         uint256 _startBlock
     ) public {
-        egg = _egg;
+        pumpToken = _pumpToken;
         devaddr = _devaddr;
         feeAddress = _feeAddress;
         eggPerBlock = _eggPerBlock;
@@ -88,14 +88,14 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         return poolInfo.length;
     }
 
-    mapping(IBEP20 => bool) public poolExistence;
-    modifier nonDuplicated(IBEP20 _lpToken) {
+    mapping(IERC20 => bool) public poolExistence;
+    modifier nonDuplicated(IERC20 _lpToken) {
         require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
         _;
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
-    function add(uint256 _allocPoint, IBEP20 _lpToken, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
+    function add(uint256 _allocPoint, IERC20 _lpToken, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
         require(_depositFeeBP <= 10000, "add: invalid deposit fee basis points");
         if (_withUpdate) {
             massUpdatePools();
@@ -163,14 +163,15 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
         uint256 eggReward = multiplier.mul(eggPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        egg.mint(devaddr, eggReward.div(10));
-        egg.mint(address(this), eggReward);
+        pumpToken.mint(devaddr, eggReward.div(10));
+        pumpToken.mint(address(this), eggReward);
         pool.accEggPerShare = pool.accEggPerShare.add(eggReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
     // Deposit LP tokens to MasterChef for EGG allocation.
-    function deposit(uint256 _pid, uint256 _amount) public nonReentrant {
+    // TODO -- ADD back in non nonReentrant
+    function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
@@ -181,10 +182,11 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
             }
         }
         if (_amount > 0) {
-            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
+            // TODO -- Safe Transfer From?
+            pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
             if (pool.depositFeeBP > 0) {
                 uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);
-                pool.lpToken.safeTransfer(feeAddress, depositFee);
+                pool.lpToken.transfer(feeAddress, depositFee);
                 user.amount = user.amount.add(_amount).sub(depositFee);
             } else {
                 user.amount = user.amount.add(_amount);
@@ -195,7 +197,8 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Withdraw LP tokens from MasterChef.
-    function withdraw(uint256 _pid, uint256 _amount) public nonReentrant {
+    // TODO -- ADD back in non nonReentrant
+    function withdraw(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
@@ -206,31 +209,32 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
-            pool.lpToken.safeTransfer(address(msg.sender), _amount);
+            pool.lpToken.transfer(address(msg.sender), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accEggPerShare).div(1e12);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    function emergencyWithdraw(uint256 _pid) public nonReentrant {
+    // TODO -- ADD back in non nonReentrant
+    function emergencyWithdraw(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
-        pool.lpToken.safeTransfer(address(msg.sender), amount);
+        pool.lpToken.transfer(address(msg.sender), amount);
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
     // Safe egg transfer function, just in case if rounding error causes pool to not have enough EGGs.
     function safeEggTransfer(address _to, uint256 _amount) internal {
-        uint256 eggBal = egg.balanceOf(address(this));
+        uint256 eggBal = pumpToken.balanceOf(address(this));
         bool transferSuccess = false;
         if (_amount > eggBal) {
-            transferSuccess = egg.transfer(_to, eggBal);
+            transferSuccess = pumpToken.transfer(_to, eggBal);
         } else {
-            transferSuccess = egg.transfer(_to, _amount);
+            transferSuccess = pumpToken.transfer(_to, _amount);
         }
         require(transferSuccess, "safeEggTransfer: transfer failed");
     }
