@@ -6,6 +6,7 @@ import "./SafeMath.sol";
 import "./interfaces/IBEP20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PumpToken.sol";
+import "./vPumpToken.sol";
 
 contract PoolManager is Ownable {
     using SafeMath for uint256;
@@ -33,19 +34,16 @@ contract PoolManager is Ownable {
         uint256 allocPoint;       // How many allocation points assigned to this pool. PUMP to distribute per block.
         uint256 lastRewardBlock;  // Last block number that PUMP distribution occurs.
         uint256 accPumpPerShare;   // Accumulated PUMP per share, times 1e12. See below.
-        uint16 depositFeeBP;      // Deposit fee in basis points
     }
 
     // Pump Token
     PumpToken public pumpToken;
     // Dev address.
-    address public devaddr;
+    address public devAddr;
     // PUMP tokens created per block.
     uint256 public pumpPerBlock;
     // Bonus multiplier for early pump makers.
     uint256 public constant BONUS_MULTIPLIER = 1;
-    // Deposit Fee address
-    address public feeAddress;
 
     // Info of each pool.
     PoolInfo[] public poolInfo;
@@ -67,14 +65,13 @@ contract PoolManager is Ownable {
 
     constructor(
         PumpToken _pumpToken,
-        address _devaddr,
-        address _feeAddress,
+        VPumpToken _vPumpToken,
+        address _devAddr,
         uint256 _pumpPerBlock,
         uint256 _startBlock
     ) public {
         pumpToken = _pumpToken;
-        devaddr = _devaddr;
-        feeAddress = _feeAddress;
+        devAddr = _devAddr;
         pumpPerBlock = _pumpPerBlock;
         startBlock = _startBlock;
     }
@@ -90,8 +87,7 @@ contract PoolManager is Ownable {
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
-    function add(uint256 _allocPoint, IBEP20 _lpToken, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
-        require(_depositFeeBP <= 10000, "add: invalid deposit fee basis points");
+    function add(uint256 _allocPoint, IBEP20 _lpToken, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -99,23 +95,20 @@ contract PoolManager is Ownable {
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
         poolExistence[_lpToken] = true;
         poolInfo.push(PoolInfo({
-        lpToken : _lpToken,
-        allocPoint : _allocPoint,
-        lastRewardBlock : lastRewardBlock,
-        accPumpPerShare : 0,
-        depositFeeBP : _depositFeeBP
+            lpToken : _lpToken,
+            allocPoint : _allocPoint,
+            lastRewardBlock : lastRewardBlock,
+            accPumpPerShare : 0
         }));
     }
 
     // Update the given pool's PUMP allocation point and deposit fee. Can only be called by the owner.
-    function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner {
-        require(_depositFeeBP <= 10000, "set: invalid deposit fee basis points");
+    function set(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner {
         if (_withUpdate) {
             massUpdatePools();
         }
         totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
         poolInfo[_pid].allocPoint = _allocPoint;
-        poolInfo[_pid].depositFeeBP = _depositFeeBP;
     }
 
     // Return reward multiplier over the given _from to _to block.
@@ -165,13 +158,13 @@ contract PoolManager is Ownable {
         }
         uint256 numElapsedBlocks = block.number.sub(pool.lastRewardBlock);
         uint256 pumpReward = numElapsedBlocks.mul(pumpPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        pumpToken.mint(devaddr, pumpReward.div(10));
+        pumpToken.mint(devAddr, pumpReward.div(10));
         pumpToken.mint(address(this), pumpReward);
         pool.accPumpPerShare = pool.accPumpPerShare.add(pumpReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MasterChef for PUMP allocation.
+    // Deposit LP tokens to PoolManager for PUMP allocation.
     // TODO -- ADD back in non nonReentrant
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
@@ -186,13 +179,7 @@ contract PoolManager is Ownable {
         if (_amount > 0) {
             // TODO -- Safe Transfer From?
             pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
-            if (pool.depositFeeBP > 0) {
-                uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);
-                pool.lpToken.transfer(feeAddress, depositFee);
-                user.amount = user.amount.add(_amount).sub(depositFee);
-            } else {
-                user.amount = user.amount.add(_amount);
-            }
+            user.amount = user.amount.add(_amount);
         }
         user.rewardDebt = user.amount.mul(pool.accPumpPerShare).div(1e12);
         emit Deposit(msg.sender, _pid, _amount);
@@ -241,18 +228,12 @@ contract PoolManager is Ownable {
     }
 
     // Update dev address by the previous dev.
-    function dev(address _devaddr) public {
-        require(msg.sender == devaddr, "dev: wut?");
-        devaddr = _devaddr;
-        emit SetDevAddress(msg.sender, _devaddr);
+    function dev(address _devAddr) public {
+        require(msg.sender == devAddr, "dev: wut?");
+        devAddr = _devAddr;
+        emit SetDevAddress(msg.sender, _devAddr);
     }
-
-    function setFeeAddress(address _feeAddress) public {
-        require(msg.sender == feeAddress, "setFeeAddress: FORBIDDEN");
-        feeAddress = _feeAddress;
-        emit SetFeeAddress(msg.sender, _feeAddress);
-    }
-
+    
     //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
     function updateEmissionRate(uint256 _pumpPerBlock) public onlyOwner {
         massUpdatePools();
