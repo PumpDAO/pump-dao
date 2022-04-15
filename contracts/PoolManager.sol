@@ -7,14 +7,7 @@ import "./interfaces/IBEP20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PumpToken.sol";
 
-// MasterChef is the master of Egg. He can make Egg and he is a fair guy.
-//
-// Note that it's ownable and the owner wields tremendous power. The ownership
-// will be transferred to a governance smart contract once EGG is sufficiently
-// distributed and the community can show to govern itself.
-//
-// Have fun reading it. Hopefully it's bug-free. God bless.
-contract MasterChefV2 is Ownable {
+contract PoolManager is Ownable {
     using SafeMath for uint256;
 
     // Info of each user.
@@ -22,13 +15,13 @@ contract MasterChefV2 is Ownable {
         uint256 amount;         // How many LP tokens the user has provided.
         uint256 rewardDebt;     // Reward debt. See explanation below.
         //
-        // We do some fancy math here. Basically, any point in time, the amount of EGGs
+        // We do some fancy math here. Basically, any point in time, the amount of PUMP
         // entitled to a user but is pending to be distributed is:
         //
-        //   pending reward = (user.amount * pool.accEggPerShare) - user.rewardDebt
+        //   pending reward = (user.amount * pool.accPumpPerShare) - user.rewardDebt
         //
         // Whenever a user deposits or withdraws LP tokens to a pool. Here's what happens:
-        //   1. The pool's `accEggPerShare` (and `lastRewardBlock`) gets updated.
+        //   1. The pool's `accPumpPerShare` (and `lastRewardBlock`) gets updated.
         //   2. User receives the pending reward sent to his/her address.
         //   3. User's `amount` gets updated.
         //   4. User's `rewardDebt` gets updated.
@@ -37,9 +30,9 @@ contract MasterChefV2 is Ownable {
     // Info of each pool.
     struct PoolInfo {
         IBEP20 lpToken;           // Address of LP token contract.
-        uint256 allocPoint;       // How many allocation points assigned to this pool. EGGs to distribute per block.
-        uint256 lastRewardBlock;  // Last block number that EGGs distribution occurs.
-        uint256 accEggPerShare;   // Accumulated EGGs per share, times 1e12. See below.
+        uint256 allocPoint;       // How many allocation points assigned to this pool. PUMP to distribute per block.
+        uint256 lastRewardBlock;  // Last block number that PUMP distribution occurs.
+        uint256 accPumpPerShare;   // Accumulated PUMP per share, times 1e12. See below.
         uint16 depositFeeBP;      // Deposit fee in basis points
     }
 
@@ -47,9 +40,9 @@ contract MasterChefV2 is Ownable {
     PumpToken public pumpToken;
     // Dev address.
     address public devaddr;
-    // EGG tokens created per block.
-    uint256 public eggPerBlock;
-    // Bonus muliplier for early egg makers.
+    // PUMP tokens created per block.
+    uint256 public pumpPerBlock;
+    // Bonus multiplier for early pump makers.
     uint256 public constant BONUS_MULTIPLIER = 1;
     // Deposit Fee address
     address public feeAddress;
@@ -60,7 +53,7 @@ contract MasterChefV2 is Ownable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint = 0;
-    // The block number when EGG mining starts.
+    // The block number when PUMP mining starts.
     uint256 public startBlock;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -70,17 +63,19 @@ contract MasterChefV2 is Ownable {
     event SetDevAddress(address indexed user, address indexed newAddress);
     event UpdateEmissionRate(address indexed user, uint256 goosePerBlock);
 
+    event Log(string desc, uint256 value);
+
     constructor(
         PumpToken _pumpToken,
         address _devaddr,
         address _feeAddress,
-        uint256 _eggPerBlock,
+        uint256 _pumpPerBlock,
         uint256 _startBlock
     ) public {
         pumpToken = _pumpToken;
         devaddr = _devaddr;
         feeAddress = _feeAddress;
-        eggPerBlock = _eggPerBlock;
+        pumpPerBlock = _pumpPerBlock;
         startBlock = _startBlock;
     }
 
@@ -107,12 +102,12 @@ contract MasterChefV2 is Ownable {
         lpToken : _lpToken,
         allocPoint : _allocPoint,
         lastRewardBlock : lastRewardBlock,
-        accEggPerShare : 0,
+        accPumpPerShare : 0,
         depositFeeBP : _depositFeeBP
         }));
     }
 
-    // Update the given pool's EGG allocation point and deposit fee. Can only be called by the owner.
+    // Update the given pool's PUMP allocation point and deposit fee. Can only be called by the owner.
     function set(uint256 _pid, uint256 _allocPoint, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner {
         require(_depositFeeBP <= 10000, "set: invalid deposit fee basis points");
         if (_withUpdate) {
@@ -125,21 +120,28 @@ contract MasterChefV2 is Ownable {
 
     // Return reward multiplier over the given _from to _to block.
     function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
-        return _to.sub(_from).mul(BONUS_MULTIPLIER);
+        return _to.sub(_from);
     }
 
-    // View function to see pending EGGs on frontend.
-    function pendingEgg(uint256 _pid, address _user) external view returns (uint256) {
+    // View function to see pending PUMP on frontend.
+    function pendingPump(uint256 _pid, address _user) external returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
-        uint256 accEggPerShare = pool.accEggPerShare;
+        uint256 accPumpPerShare = pool.accPumpPerShare;
+        emit Log("accPumpPerShare", accPumpPerShare);
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        emit Log("lpSupply", lpSupply);
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 eggReward = multiplier.mul(eggPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accEggPerShare = accEggPerShare.add(eggReward.mul(1e12).div(lpSupply));
+            uint256 numElapsedBlocks = block.number.sub(pool.lastRewardBlock);
+            emit Log("numElapsedBlocks", numElapsedBlocks);
+            uint256 pumpReward = numElapsedBlocks.mul(pumpPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            emit Log("pumpReward", pumpReward);
+            accPumpPerShare = accPumpPerShare.add(pumpReward.mul(1e12).div(lpSupply));
+            emit Log("accPumpPerShare", accPumpPerShare);
         }
-        return user.amount.mul(accEggPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 ret = user.amount.mul(accPumpPerShare).div(1e12).sub(user.rewardDebt);
+        emit Log("ret", ret);
+        return ret;
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
@@ -161,24 +163,24 @@ contract MasterChefV2 is Ownable {
             pool.lastRewardBlock = block.number;
             return;
         }
-        uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 eggReward = multiplier.mul(eggPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        pumpToken.mint(devaddr, eggReward.div(10));
-        pumpToken.mint(address(this), eggReward);
-        pool.accEggPerShare = pool.accEggPerShare.add(eggReward.mul(1e12).div(lpSupply));
+        uint256 numElapsedBlocks = block.number.sub(pool.lastRewardBlock);
+        uint256 pumpReward = numElapsedBlocks.mul(pumpPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+        pumpToken.mint(devaddr, pumpReward.div(10));
+        pumpToken.mint(address(this), pumpReward);
+        pool.accPumpPerShare = pool.accPumpPerShare.add(pumpReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
 
-    // Deposit LP tokens to MasterChef for EGG allocation.
+    // Deposit LP tokens to MasterChef for PUMP allocation.
     // TODO -- ADD back in non nonReentrant
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accEggPerShare).div(1e12).sub(user.rewardDebt);
+            uint256 pending = user.amount.mul(pool.accPumpPerShare).div(1e12).sub(user.rewardDebt);
             if (pending > 0) {
-                safeEggTransfer(msg.sender, pending);
+                safePumpTransfer(msg.sender, pending);
             }
         }
         if (_amount > 0) {
@@ -192,26 +194,25 @@ contract MasterChefV2 is Ownable {
                 user.amount = user.amount.add(_amount);
             }
         }
-        user.rewardDebt = user.amount.mul(pool.accEggPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accPumpPerShare).div(1e12);
         emit Deposit(msg.sender, _pid, _amount);
     }
 
-    // Withdraw LP tokens from MasterChef.
     // TODO -- ADD back in non nonReentrant
     function withdraw(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
         updatePool(_pid);
-        uint256 pending = user.amount.mul(pool.accEggPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pending = user.amount.mul(pool.accPumpPerShare).div(1e12).sub(user.rewardDebt);
         if (pending > 0) {
-            safeEggTransfer(msg.sender, pending);
+            safePumpTransfer(msg.sender, pending);
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
             pool.lpToken.transfer(address(msg.sender), _amount);
         }
-        user.rewardDebt = user.amount.mul(pool.accEggPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accPumpPerShare).div(1e12);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
@@ -227,16 +228,16 @@ contract MasterChefV2 is Ownable {
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
-    // Safe egg transfer function, just in case if rounding error causes pool to not have enough EGGs.
-    function safeEggTransfer(address _to, uint256 _amount) internal {
-        uint256 eggBal = pumpToken.balanceOf(address(this));
+    // Safe pump transfer function, just in case if rounding error causes pool to not have enough PUMP
+    function safePumpTransfer(address _to, uint256 _amount) internal {
+        uint256 pumpBal = pumpToken.balanceOf(address(this));
         bool transferSuccess = false;
-        if (_amount > eggBal) {
-            transferSuccess = pumpToken.transfer(_to, eggBal);
+        if (_amount > pumpBal) {
+            transferSuccess = pumpToken.transfer(_to, pumpBal);
         } else {
             transferSuccess = pumpToken.transfer(_to, _amount);
         }
-        require(transferSuccess, "safeEggTransfer: transfer failed");
+        require(transferSuccess, "safePumpTransfer: transfer failed");
     }
 
     // Update dev address by the previous dev.
@@ -253,9 +254,9 @@ contract MasterChefV2 is Ownable {
     }
 
     //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
-    function updateEmissionRate(uint256 _eggPerBlock) public onlyOwner {
+    function updateEmissionRate(uint256 _pumpPerBlock) public onlyOwner {
         massUpdatePools();
-        eggPerBlock = _eggPerBlock;
-        emit UpdateEmissionRate(msg.sender, _eggPerBlock);
+        pumpPerBlock = _pumpPerBlock;
+        emit UpdateEmissionRate(msg.sender, _pumpPerBlock);
     }
 }
