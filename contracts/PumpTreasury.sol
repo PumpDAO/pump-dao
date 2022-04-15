@@ -5,9 +5,9 @@ pragma abicoder v2;
 
 import "./ElectionManager.sol";
 import "./PumpToken.sol";
+import "./interfaces/IBEP20.sol";
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract PumpTreasury is Ownable {
     ElectionManager electionManager;
@@ -15,7 +15,8 @@ contract PumpTreasury is Ownable {
     IPancakeRouter02 pancakeRouter;
     address wBNBAddr;
     // Percent of cannon balance to roll into next voting period
-    uint256 rolloverPercent = 1;
+    uint256 rolloverPercent = 10;
+    event PumpSell(address _caller, uint256 _amount);
 
     constructor(
         address _electionManagerAddr,
@@ -28,8 +29,6 @@ contract PumpTreasury is Ownable {
         pancakeRouter = IPancakeRouter02(_pancakeRouterAddr);
         wBNBAddr = _wBNBAddr;
     }
-
-    event PumpSell(address _caller, uint256 _amount);
 
     function swapPumpForBNB(uint256 _amount) public onlyOwner returns (bool) {
         emit PumpSell(msg.sender, _amount);
@@ -56,10 +55,11 @@ contract PumpTreasury is Ownable {
         uint256 amount
     ) internal returns (bool) {
         // TODO possible we need a strong mechanism here
-        IERC20(tokenIn).approve(address(pancakeRouter), amount);
+        IBEP20(tokenIn).approve(address(pancakeRouter), amount);
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = tokenOut;
+        // TODO -- how does it work when this fails? What do we do?
         pancakeRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amount, // amountIn
             0, // amountOutMin

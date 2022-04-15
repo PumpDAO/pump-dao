@@ -16,12 +16,8 @@ contract ElectionManager is Ownable {
     mapping(uint256 => ProposalMetadata[]) public proposalsByElection;
     mapping(uint256 => mapping(address => bool))
         public proposalExistsByElection;
-    // The cost associated with creating a new proposal. This cost goes directly to the cannon.
-    // TODO I think this should actually be a function that scales with the number of proposals in an election.
-    // this is going to depend on the maximum number of proposals we can have in an election
-    // need to run the math to figure out how much that actually is.
-    uint256 public proposalCreationTax = 0.1 * 10**18;
-    address cannonAddr;
+    uint256 public proposalCreationTax = 1 * 10**18;
+    address treasuryAddr;
 
     // creatorAddress, pollIdx, TokenToPumpAddr, contractAddress
     event ProposalCreated(address, uint256, address, address);
@@ -38,7 +34,7 @@ contract ElectionManager is Ownable {
         @param _cannonAddr The PumpCannon's address
      */
     function setCannonAddress(address _cannonAddr) public onlyOwner {
-        cannonAddr = _cannonAddr;
+        treasuryAddr = _cannonAddr;
     }
 
     function createProposal(address _tokenToPumpAddr)
@@ -68,7 +64,7 @@ contract ElectionManager is Ownable {
         // Exclude PumpDAO transactions with the proposal address from cannon taxes
         pumpToken.excludeAddress(address(proposal));
         // Donate the proposalCreationTax to the cannon
-        PumpTreasury(cannonAddr).donate{value: msg.value}();
+        PumpTreasury(treasuryAddr).donate{value: msg.value}();
         emit ProposalCreated(
             msg.sender,
             currentElectionIdx,
@@ -106,7 +102,7 @@ contract ElectionManager is Ownable {
 
     function startNextElection() public {
         require(
-            msg.sender == cannonAddr,
+            msg.sender == treasuryAddr,
             "Only the cannon can start new election"
         );
         currentElectionIdx = currentElectionIdx + 1;
