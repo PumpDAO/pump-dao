@@ -5,13 +5,16 @@ import "./SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
+// TODO -- validate mint and burn functions
+// TODO -- block transfers to anything
+// other than poolManager
 contract VPumpToken is Ownable {
     using SafeMath for uint256;
 
     string public symbol = "VPUMP";
     string public name = "Voting Pump";
     uint256 public decimals = 18;
-    uint256 public totalSupply = 100 * 10 ** 18;
+    uint256 public totalSupply = 0;
 
 
     mapping(address => uint256) balances;

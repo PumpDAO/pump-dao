@@ -9,8 +9,8 @@ import "./SafeMath.sol";
     @notice Based on the ERC-20 token standard as defined at
             https://eips.ethereum.org/EIPS/eip-20
  */
-contract Token {
-
+contract TestToken {
+    // This is purely a test contract. This code should never be deployed to mainnet
     using SafeMath for uint256;
 
     string public symbol;

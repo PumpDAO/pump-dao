@@ -36,14 +36,10 @@ contract PoolManager is Ownable {
         uint256 accPumpPerShare;   // Accumulated PUMP per share, times 1e12. See below.
     }
 
-    // Pump Token
     PumpToken public pumpToken;
-    // Dev address.
+    VPumpToken public vPumpToken;
     address public devAddr;
-    // PUMP tokens created per block.
     uint256 public pumpPerBlock;
-    // Bonus multiplier for early pump makers.
-    uint256 public constant BONUS_MULTIPLIER = 1;
 
     // Info of each pool.
     PoolInfo[] public poolInfo;
@@ -61,8 +57,10 @@ contract PoolManager is Ownable {
     event SetDevAddress(address indexed user, address indexed newAddress);
     event UpdateEmissionRate(address indexed user, uint256 goosePerBlock);
 
+    // TODO -- this is just for debugging, remove before final version
     event Log(string desc, uint256 value);
 
+    // TODO -- work out numbers for _pumpPerBlock and _startBlock
     constructor(
         PumpToken _pumpToken,
         VPumpToken _vPumpToken,
@@ -71,6 +69,7 @@ contract PoolManager is Ownable {
         uint256 _startBlock
     ) public {
         pumpToken = _pumpToken;
+        vPumpToken = _vPumpToken;
         devAddr = _devAddr;
         pumpPerBlock = _pumpPerBlock;
         startBlock = _startBlock;
@@ -111,29 +110,18 @@ contract PoolManager is Ownable {
         poolInfo[_pid].allocPoint = _allocPoint;
     }
 
-    // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) public view returns (uint256) {
-        return _to.sub(_from);
-    }
-
     // View function to see pending PUMP on frontend.
-    function pendingPump(uint256 _pid, address _user) external returns (uint256) {
+    function pendingPump(uint256 _pid, address _user) external view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accPumpPerShare = pool.accPumpPerShare;
-        emit Log("accPumpPerShare", accPumpPerShare);
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        emit Log("lpSupply", lpSupply);
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 numElapsedBlocks = block.number.sub(pool.lastRewardBlock);
-            emit Log("numElapsedBlocks", numElapsedBlocks);
             uint256 pumpReward = numElapsedBlocks.mul(pumpPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            emit Log("pumpReward", pumpReward);
             accPumpPerShare = accPumpPerShare.add(pumpReward.mul(1e12).div(lpSupply));
-            emit Log("accPumpPerShare", accPumpPerShare);
         }
         uint256 ret = user.amount.mul(accPumpPerShare).div(1e12).sub(user.rewardDebt);
-        emit Log("ret", ret);
         return ret;
     }
 
@@ -179,6 +167,9 @@ contract PoolManager is Ownable {
         if (_amount > 0) {
             // TODO -- Safe Transfer From?
             pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
+            // mint vPump and send to the depositor. Used for governance
+            // Also -- need to really think through any reentrancy issues here
+            vPumpToken.mint(msg.sender, _amount);
             user.amount = user.amount.add(_amount);
         }
         user.rewardDebt = user.amount.mul(pool.accPumpPerShare).div(1e12);
@@ -198,6 +189,9 @@ contract PoolManager is Ownable {
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
             pool.lpToken.transfer(address(msg.sender), _amount);
+            // burn vPump from the address withdrawing.
+            // Also -- need to really think through any reentrancy issues here
+            vPumpToken.burn(address(msg.sender), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accPumpPerShare).div(1e12);
         emit Withdraw(msg.sender, _pid, _amount);
@@ -216,6 +210,7 @@ contract PoolManager is Ownable {
     }
 
     // Safe pump transfer function, just in case if rounding error causes pool to not have enough PUMP
+    // TODO -- add the eqiv of this for vPump!
     function safePumpTransfer(address _to, uint256 _amount) internal {
         uint256 pumpBal = pumpToken.balanceOf(address(this));
         bool transferSuccess = false;
