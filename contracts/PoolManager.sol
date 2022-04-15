@@ -3,7 +3,7 @@
 pragma solidity ^0.8;
 
 import "./SafeMath.sol";
-import "./interfaces/IERC20.sol";
+import "./interfaces/IBEP20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PumpToken.sol";
 
@@ -36,7 +36,7 @@ contract MasterChefV2 is Ownable {
 
     // Info of each pool.
     struct PoolInfo {
-        IERC20 lpToken;           // Address of LP token contract.
+        IBEP20 lpToken;           // Address of LP token contract.
         uint256 allocPoint;       // How many allocation points assigned to this pool. EGGs to distribute per block.
         uint256 lastRewardBlock;  // Last block number that EGGs distribution occurs.
         uint256 accEggPerShare;   // Accumulated EGGs per share, times 1e12. See below.
@@ -88,14 +88,14 @@ contract MasterChefV2 is Ownable {
         return poolInfo.length;
     }
 
-    mapping(IERC20 => bool) public poolExistence;
-    modifier nonDuplicated(IERC20 _lpToken) {
+    mapping(IBEP20 => bool) public poolExistence;
+    modifier nonDuplicated(IBEP20 _lpToken) {
         require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
         _;
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
+    function add(uint256 _allocPoint, IBEP20 _lpToken, uint16 _depositFeeBP, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
         require(_depositFeeBP <= 10000, "add: invalid deposit fee basis points");
         if (_withUpdate) {
             massUpdatePools();
