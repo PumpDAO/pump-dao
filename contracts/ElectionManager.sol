@@ -1,8 +1,8 @@
 pragma solidity ^0.8.0;
 
-import "./Proposal.sol";
+import "./BuyProposal.sol";
 import "./PumpToken.sol";
-import "./PSCannon.sol";
+import "./PumpTreasury.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ElectionManager is Ownable {
@@ -44,18 +44,18 @@ contract ElectionManager is Ownable {
     function createProposal(address _tokenToPumpAddr)
         public
         payable
-        returns (Proposal)
+        returns (BuyProposal)
     {
         require(
             !proposalExistsByElection[currentElectionIdx][_tokenToPumpAddr],
-            "Proposal has already been created"
+            "BuyProposal has already been created"
         );
-//        require(
-//            msg.value >= proposalCreationTax,
-//            "Proposal creation tax not met. Please include enough ETH in call."
-//        );
+        require(
+            msg.value >= proposalCreationTax,
+            "BuyProposal creation tax not met. Please include enough BNB in call."
+        );
 
-        Proposal proposal = new Proposal(
+        BuyProposal proposal = new BuyProposal(
             currentElectionIdx,
             address(pumpToken)
         );
@@ -68,7 +68,7 @@ contract ElectionManager is Ownable {
         // Exclude PumpDAO transactions with the proposal address from cannon taxes
         pumpToken.excludeAddress(address(proposal));
         // Donate the proposalCreationTax to the cannon
-        // PSCannon(cannonAddr).donateEth{value: msg.value}();
+        PumpTreasury(cannonAddr).donate{value: msg.value}();
         emit ProposalCreated(
             msg.sender,
             currentElectionIdx,

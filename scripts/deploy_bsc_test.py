@@ -1,4 +1,4 @@
-from brownie import Contract, accounts, ElectionManager, PumpToken, ICO, PSCannon
+from brownie import Contract, accounts, ElectionManager, PumpToken, ICO, PumpTreasury
 from .deploy_util import deploy_pump_token, deploy_vote_handler, create_proposal, deploy_ico
 
 
@@ -23,7 +23,7 @@ def main():
 
     print("Deploying ElectionManager and Cannon...")
     vote_handler = ElectionManager.deploy(pump_token.address, {'from': acct})
-    cannon = PSCannon.deploy(vote_handler.address, pump_token.address, WBNB_ADDR, PS_SWAP_ROUTER, {'from': acct})
+    cannon = PumpTreasury.deploy(vote_handler.address, pump_token.address, WBNB_ADDR, PS_SWAP_ROUTER, {'from': acct})
     pump_token.setCannonAddress(cannon.address, {'from': acct})
 
     wbnb = Contract.from_explorer(WBNB_ADDR)

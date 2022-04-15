@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 import "./PumpToken.sol";
 import "./SafeMath.sol";
 
-contract Proposal {
+contract BuyProposal {
     using SafeMath for uint256;
 
     uint256 public pollIdx;
@@ -23,16 +23,17 @@ contract Proposal {
             "Need to approve proposal to spend pump before you can vote."
         );
         votes[msg.sender] = votes[msg.sender].add(_amount);
+        // TODO -- wtf happens if this fails?
         pumpToken.transferFrom(msg.sender, address(this), _amount);
     }
 
     function withdrawVote(uint256 _amount) public {
-        // TODO need to figure out if this is a reentrancy vulnerability
         require(
             _amount <= votes[msg.sender],
             "Cannot withdraw more votes than cast"
         );
         votes[msg.sender] = votes[msg.sender].sub(_amount);
+        // TODO -- wtf happens if this fails?
         pumpToken.transfer(msg.sender, _amount);
     }
 }

@@ -1,4 +1,4 @@
-from brownie import Contract, accounts, ElectionManager, PumpToken, ICO, PSCannon, Proposal
+from brownie import Contract, accounts, ElectionManager, PumpToken, ICO, PumpTreasury, Proposal
 from .deploy_util import deploy_pump_token, deploy_vote_handler, create_proposal, deploy_ico, write_addresses, update_contracts_for_web
 
 # These addresses are the actual deployed BSC addresses. They are used here
@@ -23,7 +23,7 @@ def main():
     pump_token.setElectionManagerAddr(vote_handler.address)
     vote_handler.createProposal("0XD2877702675E6CEB975B4A1DFF9FB7BAF4C91EA9")
 
-    cannon = PSCannon.deploy(vote_handler.address, pump_token.address, WETH_ADDR, UNI_SWAP_ROUTER, {'from': acct})
+    cannon = PumpTreasury.deploy(vote_handler.address, pump_token.address, WETH_ADDR, UNI_SWAP_ROUTER, {'from': acct})
     vote_handler.setCannonAddress(cannon.address, {'from': acct})
     pump_token.setElectionManagerAddr(vote_handler.address)
 

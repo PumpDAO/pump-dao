@@ -9,7 +9,7 @@ import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract PSCannon is Ownable {
+contract PumpTreasury is Ownable {
     ElectionManager electionManager;
     PumpToken pumpToken;
     IPancakeRouter02 pancakeRouter;
@@ -29,9 +29,11 @@ contract PSCannon is Ownable {
         wBNBAddr = _wBNBAddr;
     }
 
-    function swapPumpForBNB(uint256 amount) public onlyOwner returns (bool) {
-        // TODO emit an event here
-        return _performSwap(address(pumpToken), wBNBAddr, amount);
+    event PumpSell(address _caller, uint256 _amount);
+
+    function swapPumpForBNB(uint256 _amount) public onlyOwner returns (bool) {
+        emit PumpSell(msg.sender, _amount);
+        return _performSwap(address(pumpToken), wBNBAddr, _amount);
     }
 
     function fireCannon(uint256 amount) public onlyOwner returns (bool) {
@@ -45,7 +47,6 @@ contract PSCannon is Ownable {
         );
         _performSwap(wBNBAddr, winningToken, amount);
         // TODO emit an event
-        // TODO send to black hole
         return true;
     }
 
@@ -69,5 +70,5 @@ contract PSCannon is Ownable {
         return true;
     }
 
-    function donateEth() public payable {}
+    function donate() public payable {}
 }
