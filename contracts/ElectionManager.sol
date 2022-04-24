@@ -35,7 +35,7 @@ contract ElectionManager is Ownable {
     }
 
     uint256 public currElectionIdx;
-    mapping(uint256 => ElectionMetadata) elections;
+    mapping(uint256 => ElectionMetadata) public elections;
     VPumpToken private vPumpToken;
     uint256 public proposalCreationTax = 1 * 10**18;
     address treasuryAddr;
@@ -168,6 +168,10 @@ contract ElectionManager is Ownable {
         nextElection.winnerDeclaredBlock = electionMetadata.winnerDeclaredBlock + electionLength;
 
         // TODO -- emit event
+    }
+
+    function getActiveProposals() public view returns (address[] memory) {
+        return elections[currElectionIdx].proposedTokens;
     }
 
 }

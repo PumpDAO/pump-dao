@@ -28,3 +28,9 @@ def pool_manager(PoolManager, PumpToken, VPumpToken, accounts):
 def test_lp_token(TestToken, accounts):
     return TestToken.deploy("Fake LP", "Pump-LP", 18, 100 * 10**18, {'from': accounts[0]})
 
+@pytest.fixture(scope="module")
+def election_manager(VPumpToken, ElectionManager, accounts):
+    vpump_token = VPumpToken.deploy({'from': accounts[0]})
+    vpump_token.mint(accounts[0], 10_000, {'from': accounts[0]})
+    return ElectionManager.deploy(vpump_token, 0, {'from': accounts[0]})
+
