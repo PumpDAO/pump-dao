@@ -35,19 +35,19 @@ contract PumpTreasury is Ownable {
         return _performSwap(address(pumpToken), wBNBAddr, _amount);
     }
 
-    function fireCannon(uint256 amount) public onlyOwner returns (bool) {
-        // TODO need to add timing (or size) requirements to this call
-        address winningToken = electionManager.getWinner().tokenToPumpAddr;
-        // TODO this is the wrong percent and also isn't used
-        uint256 fireAmount = SafeMath.div(
-            // This is the wrong amount
-            SafeMath.mul(address(this).balance, rolloverPercent),
-            100
-        );
-        _performSwap(wBNBAddr, winningToken, amount);
-        // TODO emit an event
-        return true;
-    }
+//    function fireCannon(uint256 amount) public onlyOwner returns (bool) {
+//        // TODO need to add timing (or size) requirements to this call
+//        address winningToken = electionManager.getWinner().tokenToPumpAddr;
+//        // TODO this is the wrong percent and also isn't used
+//        uint256 fireAmount = SafeMath.div(
+//            // This is the wrong amount
+//            SafeMath.mul(address(this).balance, rolloverPercent),
+//            100
+//        );
+//        _performSwap(wBNBAddr, winningToken, amount);
+//        // TODO emit an event
+//        return true;
+//    }
 
     function _performSwap(
         address tokenIn,
@@ -67,6 +67,13 @@ contract PumpTreasury is Ownable {
             address(this), // to
             99999999999 // deadline
         );
+        return true;
+    }
+
+    // TODO -- implement
+    function _addPumpLiquidity(
+        uint256 _pumpAmount
+    ) internal returns (bool) {
         return true;
     }
 

@@ -67,7 +67,7 @@ contract PoolManager is Ownable {
         address _devAddr,
         uint256 _pumpPerBlock,
         uint256 _startBlock
-    ) public {
+    ) {
         pumpToken = _pumpToken;
         vPumpToken = _vPumpToken;
         devAddr = _devAddr;

@@ -25,7 +25,6 @@ contract VPumpToken is Ownable {
 
     constructor(
     )
-        public
     {
         balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
