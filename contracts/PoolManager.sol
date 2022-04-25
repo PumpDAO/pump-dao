@@ -57,10 +57,6 @@ contract PoolManager is Ownable {
     event SetDevAddress(address indexed user, address indexed newAddress);
     event UpdateEmissionRate(address indexed user, uint256 goosePerBlock);
 
-    // TODO -- this is just for debugging, remove before final version
-    event Log(string desc, uint256 value);
-
-    // TODO -- work out numbers for _pumpPerBlock and _startBlock
     constructor(
         PumpToken _pumpToken,
         VPumpToken _vPumpToken,
@@ -146,8 +142,6 @@ contract PoolManager is Ownable {
         }
         uint256 numElapsedBlocks = block.number.sub(pool.lastRewardBlock);
         uint256 pumpReward = numElapsedBlocks.mul(pumpPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        pumpToken.mint(devAddr, pumpReward.div(10));
-        pumpToken.mint(address(this), pumpReward);
         pool.accPumpPerShare = pool.accPumpPerShare.add(pumpReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
