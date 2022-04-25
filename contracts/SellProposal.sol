@@ -26,7 +26,7 @@ contract SellProposal {
         uint256 _holdingSize,
         IBEP20 _pumpHolding,
         VPumpToken _vPumpToken
-    ) public {
+    ) {
         purchaseBlock = _purchaseBlock;
         holdingSize = _holdingSize;
         pumpHolding = _pumpHolding;

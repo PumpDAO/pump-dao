@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/IBEP20.sol";
 
 contract PumpToken is Ownable {
     using SafeMath for uint256;

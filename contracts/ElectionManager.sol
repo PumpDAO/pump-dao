@@ -1,32 +1,90 @@
 pragma solidity ^0.8.0;
 
-import "./BuyProposal.sol";
 import "./PumpToken.sol";
 import "./PumpTreasury.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./vPumpToken.sol";
 
+// TODO -- run solhint across project
+// TODO -- write documentation
+// TODO -- what type should electionIdx be
 contract ElectionManager is Ownable {
-    struct ProposalMetadata {
-        address tokenToPumpAddr;
-        address proposalAddr;
+    // The number of blocks between when voting ends
+    // and a winner is declared. Prevents flash loan attacks.
+    uint256 public winnerDelay;
+    uint256 public electionLength;
+    address public defaultProposal;
+
+
+    struct Proposal {
+        address proposer;
+        uint256 createdAt;
+        uint256 totalVotes;
+        mapping(address => uint256) votes;
     }
 
-    uint256 public currentElectionIdx;
-    PumpToken private pumpToken;
-    mapping(uint256 => ProposalMetadata[]) public proposalsByElection;
-    mapping(uint256 => mapping(address => bool))
-        public proposalExistsByElection;
+    // View only
+    struct ProposalMetadata {
+        address proposer;
+        uint256 createdAt;
+        uint256 totalVotes;
+    }
+
+    struct Election {
+        uint256 votingStartBlock;
+        uint256 votingEndBlock;
+        uint256 winnerDeclaredBlock;
+        mapping(address => bool) validProposals;
+        mapping(address => Proposal) proposals;
+        address[] proposedTokens;
+        bool winnerDeclared;
+        address winner;
+    }
+
+    // View only
+    struct ElectionMetadata {
+        uint256 votingStartBlock;
+        uint256 votingEndBlock;
+        uint256 winnerDeclaredBlock;
+        bool winnerDeclared;
+        address winner;
+    }
+
+    uint256 public currElectionIdx;
+    mapping(uint256 => Election) public elections;
+    VPumpToken public vPumpToken;
     uint256 public proposalCreationTax = 1 * 10**18;
     address treasuryAddr;
 
-    // creatorAddress, pollIdx, TokenToPumpAddr, contractAddress
-    event ProposalCreated(address, uint256, address, address);
-    // ProposalAddress, PumpTokenAddress, BHOLE Amount
-    event CurrentProposalState(address, address, uint256);
+    event ProposalCreated(uint256 electionIdx, address tokenAddr);
+    event VoteDeposited(uint256 electionIdx, address tokenAddr, uint256 amt);
+    event VoteWithdrawn(uint256 electionIdx, address tokenAddr, uint256 amt);
+    event WinnerDeclared(uint256 electionIdx, address winner, uint256 numVotes);
 
-    constructor(address _pumpTokenAddr) {
-        currentElectionIdx = 0;
-        pumpToken = PumpToken(_pumpTokenAddr);
+    constructor(
+        VPumpToken _vPumpToken,
+        uint256 _startBlock,
+        uint256 _winnerDelay,
+        uint256 _electionLength,
+        address _defaultProposal
+    ) {
+
+        winnerDelay = _winnerDelay;
+        electionLength = _electionLength;
+        defaultProposal = _defaultProposal;
+        vPumpToken = _vPumpToken;
+        currElectionIdx = 0;
+
+        Election storage firstElection = elections[0];
+        firstElection.votingStartBlock = _startBlock;
+        firstElection.votingEndBlock = _startBlock + electionLength - winnerDelay;
+        firstElection.winnerDeclaredBlock = _startBlock + electionLength;
+
+        firstElection.validProposals[defaultProposal] = true;
+        firstElection.proposals[defaultProposal].proposer = address(this);
+        firstElection.proposals[defaultProposal].createdAt = block.number;
+        firstElection.proposedTokens.push(defaultProposal);
+
     }
 
     /**
@@ -37,82 +95,157 @@ contract ElectionManager is Ownable {
         treasuryAddr = _cannonAddr;
     }
 
-    function createProposal(address _tokenToPumpAddr)
+    function createProposal(uint256 _electionIdx, address _tokenAddr)
         public
         payable
-        returns (BuyProposal)
     {
         require(
-            !proposalExistsByElection[currentElectionIdx][_tokenToPumpAddr],
+            _electionIdx == currElectionIdx,
+            "Can only create proposals for current election"
+        );
+        Election storage electionMetadata = elections[currElectionIdx];
+        require(
+            !electionMetadata.validProposals[_tokenAddr],
             "BuyProposal has already been created"
         );
         require(
             msg.value >= proposalCreationTax,
-            "BuyProposal creation tax not met. Please include enough BNB in call."
+            "BuyProposal creation tax not met"
         );
 
-        BuyProposal proposal = new BuyProposal(
-            currentElectionIdx,
-            address(pumpToken)
-        );
-        ProposalMetadata memory info = ProposalMetadata(
-            _tokenToPumpAddr,
-            address(proposal)
-        );
-        proposalsByElection[currentElectionIdx].push(info);
-        proposalExistsByElection[currentElectionIdx][_tokenToPumpAddr] = true;
-        // Exclude PumpDAO transactions with the proposal address from cannon taxes
-        pumpToken.excludeAddress(address(proposal));
-        // Donate the proposalCreationTax to the cannon
-        PumpTreasury(treasuryAddr).donate{value: msg.value}();
-        emit ProposalCreated(
-            msg.sender,
-            currentElectionIdx,
-            _tokenToPumpAddr,
-            address(proposal)
-        );
-        return proposal;
+        electionMetadata.validProposals[_tokenAddr] = true;
+        electionMetadata.proposals[_tokenAddr].proposer = msg.sender;
+        electionMetadata.proposals[_tokenAddr].createdAt = block.number;
+        electionMetadata.proposedTokens.push(_tokenAddr);
+
+        emit ProposalCreated(_electionIdx, _tokenAddr);
     }
 
-    function getWinner() public returns (ProposalMetadata memory) {
-        ProposalMetadata[] memory activeProposals = proposalsByElection[
-            currentElectionIdx
-        ];
-        ProposalMetadata memory maxProposal = activeProposals[0];
-        uint256 maxBhole = pumpToken.balanceOf(maxProposal.proposalAddr);
-        uint256 i;
+    // TODO -- measure the cost of gas on this
+    function vote(uint256 _electionIdx, address _tokenAddr, uint256 _amt) public {
+        require(
+            vPumpToken.allowance(msg.sender, address(this)) >= _amt,
+            "ElectionManager not approved to transfer enough vPUMP"
+        );
+        require(
+            _electionIdx == currElectionIdx,
+            "Can only vote for active election"
+        );
+        Election storage electionMetadata = elections[currElectionIdx];
+        require(
+            block.number <= electionMetadata.votingEndBlock,
+            "Voting has already ended"
+        );
+        require(
+            electionMetadata.validProposals[_tokenAddr],
+            "Can only vote for valid proposals"
+        );
+        Proposal storage proposal = electionMetadata.proposals[_tokenAddr];
+        proposal.votes[msg.sender] += _amt;
+        proposal.totalVotes += _amt;
+        vPumpToken.transferFrom(msg.sender, address(this), _amt);
+
+        emit VoteDeposited(_electionIdx, _tokenAddr, _amt);
+    }
+
+    function withdrawVote(uint256 _electionIdx, address _tokenAddr, uint256 _amt) public {
+        Election storage electionMetadata = elections[currElectionIdx];
+        require(
+            electionMetadata.validProposals[_tokenAddr],
+            "Can only withdraw votes from a valid proposals"
+        );
+        Proposal storage proposal = electionMetadata.proposals[_tokenAddr];
+        require(
+            proposal.votes[msg.sender] >= _amt,
+            "Cannot withdraw more votes than cast"
+        );
+        proposal.votes[msg.sender] -= _amt;
+        proposal.totalVotes -= _amt;
+        vPumpToken.transfer(msg.sender, _amt);
+
+        emit VoteWithdrawn(_electionIdx, _tokenAddr, _amt);
+    }
+
+    function withdrawAllVotes() public {
+        // TODO implement me
+    }
+
+    // TODO we may want to make this MEVable
+    // TODO -- write tests
+    function declareWinner(uint256 _electionIdx) public {
+        require(
+            _electionIdx == currElectionIdx,
+            "Can only declare winner for current election"
+        );
+        Election storage electionMetadata = elections[currElectionIdx];
+        require(
+            block.number >= electionMetadata.winnerDeclaredBlock,
+            "Can only declare winner for election after it has finished"
+        );
+
+        // If no proposals were made, the default proposal wins
+        address winningToken = electionMetadata.proposedTokens[0];
+        uint256 winningVotes = electionMetadata.proposals[winningToken].totalVotes;
         // TODO this for loop is a pretty big vulnerability. If the number of active proposals in a single
         // election grows too large this for loop could fully exhaust the maximum per tx gas meaning
         // it would be impossible for a call to getWinner to succeed.
-        for (i = 0; i < activeProposals.length; i++) {
-            ProposalMetadata memory meta = activeProposals[i];
-            uint256 bholeCount = pumpToken.balanceOf(meta.proposalAddr);
-            emit CurrentProposalState(
-                meta.proposalAddr,
-                meta.tokenToPumpAddr,
-                bholeCount
-            );
-            if (bholeCount > maxBhole) {
-                maxProposal = meta;
-                maxBhole = bholeCount;
+        for (uint256 i = 0; i < electionMetadata.proposedTokens.length; i++) {
+            address tokenAddr = electionMetadata.proposedTokens[i];
+            Proposal storage proposal = electionMetadata.proposals[tokenAddr];
+            if (proposal.totalVotes > winningVotes) {
+                winningToken = tokenAddr;
+                winningVotes = proposal.totalVotes;
             }
         }
-        return maxProposal;
+
+        electionMetadata.winnerDeclared = true;
+        electionMetadata.winner = winningToken;
+        currElectionIdx += 1;
+        Election storage nextElection = elections[currElectionIdx];
+        nextElection.votingStartBlock = electionMetadata.winnerDeclaredBlock + 1;
+        nextElection.votingEndBlock = electionMetadata.winnerDeclaredBlock + electionLength - winnerDelay;
+        nextElection.winnerDeclaredBlock = electionMetadata.winnerDeclaredBlock + electionLength;
+        // Setup the default proposal
+        nextElection.validProposals[defaultProposal] = true;
+        nextElection.proposals[defaultProposal].proposer = address(this);
+        nextElection.proposals[defaultProposal].createdAt = block.number;
+        nextElection.proposedTokens.push(defaultProposal);
+
+        emit WinnerDeclared(_electionIdx, winningToken, winningVotes);
     }
 
-    function startNextElection() public {
+    function getActiveProposals() public view returns (address[] memory) {
+        return elections[currElectionIdx].proposedTokens;
+    }
+
+    function getProposal(
+        uint256 _electionIdx,
+        address _tokenAddr
+    ) public view returns (ProposalMetadata memory) {
         require(
-            msg.sender == treasuryAddr,
-            "Only the cannon can start new election"
+            elections[currElectionIdx].validProposals[_tokenAddr],
+            "No valid proposal for args"
         );
-        currentElectionIdx = currentElectionIdx + 1;
+        Proposal storage proposal = elections[currElectionIdx].proposals[_tokenAddr];
+        return ProposalMetadata({
+            proposer: proposal.proposer,
+            createdAt: proposal.createdAt,
+            totalVotes: proposal.totalVotes
+        });
     }
 
-    function getActiveProposals()
-        public
-        view
-        returns (ProposalMetadata[] memory)
-    {
-        return proposalsByElection[currentElectionIdx];
+    function getElectionMetadata(
+        uint256 _electionIdx
+    ) public view returns (ElectionMetadata memory) {
+        require(_electionIdx <= currElectionIdx, "Can't query future election");
+        Election storage election = elections[_electionIdx];
+        return ElectionMetadata({
+            votingStartBlock: election.votingStartBlock,
+            votingEndBlock: election.votingEndBlock,
+            winnerDeclaredBlock: election.winnerDeclaredBlock,
+            winnerDeclared: election.winnerDeclared,
+            winner: election.winner
+        });
     }
+
 }
