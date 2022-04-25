@@ -12,6 +12,8 @@ contract ElectionManager is Ownable {
     uint256 public winnerDelay;
     uint256 public electionLength;
     address public defaultProposal;
+    uint256 maxNumBuys = 20;
+    uint256 buyCooldownBlocks = (60 * 60) / 3; // Buy every three hours
 
 
     struct Proposal {
@@ -28,6 +30,7 @@ contract ElectionManager is Ownable {
         uint256 totalVotes;
     }
 
+    // TODO -- comment each fiels
     struct Election {
         uint256 votingStartBlock;
         uint256 votingEndBlock;
@@ -37,6 +40,9 @@ contract ElectionManager is Ownable {
         address[] proposedTokens;
         bool winnerDeclared;
         address winner;
+        // Buy related Data
+        uint8 numBuysMade;
+        uint256 nextValidBuyBlock;
     }
 
     // View only
@@ -46,18 +52,23 @@ contract ElectionManager is Ownable {
         uint256 winnerDeclaredBlock;
         bool winnerDeclared;
         address winner;
+        // Buy related Data
+        uint8 numBuysMade;
+        uint256 nextValidBuyBlock;
     }
 
     uint256 public currElectionIdx;
     mapping(uint256 => Election) public elections;
     VPumpToken public vPumpToken;
     uint256 public proposalCreationTax = 1 * 10**18;
-    address treasuryAddr;
+    PumpTreasury public treasury;
+
 
     event ProposalCreated(uint16 electionIdx, address tokenAddr);
     event VoteDeposited(uint16 electionIdx, address tokenAddr, uint256 amt);
     event VoteWithdrawn(uint16 electionIdx, address tokenAddr, uint256 amt);
     event WinnerDeclared(uint16 electionIdx, address winner, uint256 numVotes);
+    event BuyProposalExecuted(uint256 electionIdx, uint256 wBNBAmt);
 
     constructor(
         VPumpToken _vPumpToken,
@@ -83,14 +94,6 @@ contract ElectionManager is Ownable {
         firstElection.proposals[defaultProposal].createdAt = block.number;
         firstElection.proposedTokens.push(defaultProposal);
 
-    }
-
-    /**
-        @notice Set the address of the PumpCannon
-        @param _cannonAddr The PumpCannon's address
-     */
-    function setCannonAddress(address _cannonAddr) public onlyOwner {
-        treasuryAddr = _cannonAddr;
     }
 
     function createProposal(uint16 _electionIdx, address _tokenAddr)
@@ -241,8 +244,25 @@ contract ElectionManager is Ownable {
             votingEndBlock: election.votingEndBlock,
             winnerDeclaredBlock: election.winnerDeclaredBlock,
             winnerDeclared: election.winnerDeclared,
-            winner: election.winner
+            winner: election.winner,
+            numBuysMade: election.numBuysMade,
+            nextValidBuyBlock: election.nextValidBuyBlock
         });
+    }
+
+
+    // TODO -- write tests
+    // TODO -- maybe make MEVable
+    function executeBuyProposal(uint16 _electionIdx) public {
+        Election storage electionData = elections[_electionIdx];
+        require(electionData.winnerDeclared, "Can't execute until a winner is declared.");
+        require(electionData.numBuysMade <= maxNumBuys, "Can't exceed maxNumBuys");
+        require(electionData.nextValidBuyBlock <= block.number, "Must wait before executing");
+
+        electionData.numBuysMade += 1;
+        electionData.nextValidBuyBlock += buyCooldownBlocks;
+
+        treasury.buyProposedToken(electionData.winner);
     }
 
 }
