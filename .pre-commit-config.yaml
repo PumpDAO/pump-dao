@@ -6,8 +6,7 @@ repos:
     -   id: trailing-whitespace
   -   repo: local
       hooks:
-      -   id: pylint
-          name: pylint
-          entry: pylint
+      -   id: brownie-test
+          name: brownie-test
+          entry: brownie-test
           language: system
-          types: [python]
