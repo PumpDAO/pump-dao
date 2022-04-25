@@ -5,7 +5,7 @@ pragma abicoder v2;
 
 import "./ElectionManager.sol";
 import "./PumpToken.sol";
-import "./interfaces/IBEP20.sol";
+import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 

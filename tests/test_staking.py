@@ -72,6 +72,7 @@ def test_multi_user_staking(pool_manager, test_lp_token, accounts):
     assert pool_manager.pendingPump(0, acc1) == acc1_base + 10 * pump_per_block * (5_000 / 5_000)
     assert pool_manager.pendingPump(0, acc2) == acc2_base + 10 * pump_per_block * (0 / 5_000)
 
+
 def test_single_user_staking(pool_manager, test_lp_token, accounts):
     account = accounts[0]
     vpump = VPumpToken.at(pool_manager.vPumpToken())

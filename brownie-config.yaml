@@ -9,7 +9,9 @@ compiler:
       - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.3.3"
       - "@pancake-swap-core=combat-defi/pancake-swap-core@1.0.0"
       - "@pancake-swap-periphery=combat-defi/pancake-swap-periphery@1.0.0"
+      - "@pancake-swap-lib=combat-defi/pancake-swap-lib@1.0.0"
 dependencies:
   - OpenZeppelin/openzeppelin-contracts@4.3.3
   - combat-defi/pancake-swap-core@1.0.0
   - combat-defi/pancake-swap-periphery@1.0.0
+  - combat-defi/pancake-swap-lib@1.0.0

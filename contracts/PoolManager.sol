@@ -3,13 +3,16 @@
 pragma solidity ^0.8;
 
 import "./SafeMath.sol";
-import "./interfaces/IBEP20.sol";
+import "./lib/SafeBEP20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "./PumpToken.sol";
 import "./vPumpToken.sol";
 
-contract PoolManager is Ownable {
+contract PoolManager is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
+    using SafeBEP20 for IBEP20;
 
     // Info of each user.
     struct UserInfo {
@@ -147,8 +150,7 @@ contract PoolManager is Ownable {
     }
 
     // Deposit LP tokens to PoolManager for PUMP allocation.
-    // TODO -- ADD back in non nonReentrant
-    function deposit(uint256 _pid, uint256 _amount) public {
+    function deposit(uint256 _pid, uint256 _amount) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
@@ -159,10 +161,8 @@ contract PoolManager is Ownable {
             }
         }
         if (_amount > 0) {
-            // TODO -- Safe Transfer From?
-            pool.lpToken.transferFrom(address(msg.sender), address(this), _amount);
+            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
             // mint vPump and send to the depositor. Used for governance
-            // Also -- need to really think through any reentrancy issues here
             vPumpToken.mint(msg.sender, _amount);
             user.amount = user.amount.add(_amount);
         }
@@ -170,8 +170,7 @@ contract PoolManager is Ownable {
         emit Deposit(msg.sender, _pid, _amount);
     }
 
-    // TODO -- ADD back in non nonReentrant
-    function withdraw(uint256 _pid, uint256 _amount) public {
+    function withdraw(uint256 _pid, uint256 _amount) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
@@ -182,9 +181,7 @@ contract PoolManager is Ownable {
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
-            pool.lpToken.transfer(address(msg.sender), _amount);
-            // burn vPump from the address withdrawing.
-            // Also -- need to really think through any reentrancy issues here
+            pool.lpToken.safeTransfer(address(msg.sender), _amount);
             vPumpToken.burn(address(msg.sender), _amount);
         }
         user.rewardDebt = user.amount.mul(pool.accPumpPerShare).div(1e12);
@@ -192,19 +189,17 @@ contract PoolManager is Ownable {
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    // TODO -- ADD back in non nonReentrant
-    function emergencyWithdraw(uint256 _pid) public {
+    function emergencyWithdraw(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
-        pool.lpToken.transfer(address(msg.sender), amount);
+        pool.lpToken.safeTransfer(address(msg.sender), amount);
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
     // Safe pump transfer function, just in case if rounding error causes pool to not have enough PUMP
-    // TODO -- add the eqiv of this for vPump!
     function safePumpTransfer(address _to, uint256 _amount) internal {
         uint256 pumpBal = pumpToken.balanceOf(address(this));
         bool transferSuccess = false;
@@ -222,7 +217,7 @@ contract PoolManager is Ownable {
         devAddr = _devAddr;
         emit SetDevAddress(msg.sender, _devAddr);
     }
-    
+
     //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
     function updateEmissionRate(uint256 _pumpPerBlock) public onlyOwner {
         massUpdatePools();

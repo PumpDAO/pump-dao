@@ -6,8 +6,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./vPumpToken.sol";
 
 // TODO -- run solhint across project
-// TODO -- write documentation
-// TODO -- what type should electionIdx be
 contract ElectionManager is Ownable {
     // The number of blocks between when voting ends
     // and a winner is declared. Prevents flash loan attacks.
@@ -56,10 +54,10 @@ contract ElectionManager is Ownable {
     uint256 public proposalCreationTax = 1 * 10**18;
     address treasuryAddr;
 
-    event ProposalCreated(uint256 electionIdx, address tokenAddr);
-    event VoteDeposited(uint256 electionIdx, address tokenAddr, uint256 amt);
-    event VoteWithdrawn(uint256 electionIdx, address tokenAddr, uint256 amt);
-    event WinnerDeclared(uint256 electionIdx, address winner, uint256 numVotes);
+    event ProposalCreated(uint16 electionIdx, address tokenAddr);
+    event VoteDeposited(uint16 electionIdx, address tokenAddr, uint256 amt);
+    event VoteWithdrawn(uint16 electionIdx, address tokenAddr, uint256 amt);
+    event WinnerDeclared(uint16 electionIdx, address winner, uint256 numVotes);
 
     constructor(
         VPumpToken _vPumpToken,
@@ -95,7 +93,7 @@ contract ElectionManager is Ownable {
         treasuryAddr = _cannonAddr;
     }
 
-    function createProposal(uint256 _electionIdx, address _tokenAddr)
+    function createProposal(uint16 _electionIdx, address _tokenAddr)
         public
         payable
     {
@@ -122,7 +120,7 @@ contract ElectionManager is Ownable {
     }
 
     // TODO -- measure the cost of gas on this
-    function vote(uint256 _electionIdx, address _tokenAddr, uint256 _amt) public {
+    function vote(uint16 _electionIdx, address _tokenAddr, uint256 _amt) public {
         require(
             vPumpToken.allowance(msg.sender, address(this)) >= _amt,
             "ElectionManager not approved to transfer enough vPUMP"
@@ -148,7 +146,7 @@ contract ElectionManager is Ownable {
         emit VoteDeposited(_electionIdx, _tokenAddr, _amt);
     }
 
-    function withdrawVote(uint256 _electionIdx, address _tokenAddr, uint256 _amt) public {
+    function withdrawVote(uint16 _electionIdx, address _tokenAddr, uint256 _amt) public {
         Election storage electionMetadata = elections[currElectionIdx];
         require(
             electionMetadata.validProposals[_tokenAddr],
@@ -171,8 +169,7 @@ contract ElectionManager is Ownable {
     }
 
     // TODO we may want to make this MEVable
-    // TODO -- write tests
-    function declareWinner(uint256 _electionIdx) public {
+    function declareWinner(uint16 _electionIdx) public {
         require(
             _electionIdx == currElectionIdx,
             "Can only declare winner for current election"
@@ -219,7 +216,7 @@ contract ElectionManager is Ownable {
     }
 
     function getProposal(
-        uint256 _electionIdx,
+        uint16 _electionIdx,
         address _tokenAddr
     ) public view returns (ProposalMetadata memory) {
         require(
@@ -235,7 +232,7 @@ contract ElectionManager is Ownable {
     }
 
     function getElectionMetadata(
-        uint256 _electionIdx
+        uint16 _electionIdx
     ) public view returns (ElectionMetadata memory) {
         require(_electionIdx <= currElectionIdx, "Can't query future election");
         Election storage election = elections[_electionIdx];
