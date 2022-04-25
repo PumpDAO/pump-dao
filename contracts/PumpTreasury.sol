@@ -18,7 +18,7 @@ contract PumpTreasury is Ownable {
     PumpToken pumpToken;
     IPancakeRouter02 pancakeRouter;
     IBEP20 wBNB;
-    address electionManger;
+    address electionMangerAddr;
 
     event PumpSell(address _caller, uint256 _amount);
     event BuyProposedToken(address _tokenAddress, uint256 wBNBAmt);
@@ -26,17 +26,19 @@ contract PumpTreasury is Ownable {
     constructor(
         PumpToken _pumpToken,
         address _wBNBAddr,
-        address _pancakeRouterAddr,
-        address _electionManagerAddr
+        address _pancakeRouterAddr
     ) {
         pumpToken = _pumpToken;
         pancakeRouter = IPancakeRouter02(_pancakeRouterAddr);
         wBNB = IBEP20(_wBNBAddr);
-        electionManger = _electionManagerAddr;
+    }
+
+    function setElectionManagerAddress(address _addr) public onlyOwner {
+        electionMangerAddr = _addr;
     }
 
     modifier onlyElectionManager() {
-        require(electionManger == msg.sender, "Caller is not ElectionManager");
+        require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
         _;
     }
 

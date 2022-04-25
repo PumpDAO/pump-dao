@@ -12,8 +12,8 @@ contract ElectionManager is Ownable {
     uint256 public winnerDelay;
     uint256 public electionLength;
     address public defaultProposal;
-    uint256 maxNumBuys = 20;
-    uint256 buyCooldownBlocks = (60 * 60) / 3; // Buy every three hours
+    uint256 maxNumBuys;
+    uint256 buyCooldownBlocks;
 
 
     struct Proposal {
@@ -75,7 +75,10 @@ contract ElectionManager is Ownable {
         uint256 _startBlock,
         uint256 _winnerDelay,
         uint256 _electionLength,
-        address _defaultProposal
+        address _defaultProposal,
+        PumpTreasury _treasury,
+        uint256 _maxNumBuys,
+        uint256 _buyCooldownBlocks
     ) {
 
         winnerDelay = _winnerDelay;
@@ -83,6 +86,9 @@ contract ElectionManager is Ownable {
         defaultProposal = _defaultProposal;
         vPumpToken = _vPumpToken;
         currElectionIdx = 0;
+        treasury = _treasury;
+        maxNumBuys = _maxNumBuys;
+        buyCooldownBlocks = _buyCooldownBlocks;
 
         Election storage firstElection = elections[0];
         firstElection.votingStartBlock = _startBlock;
@@ -252,7 +258,7 @@ contract ElectionManager is Ownable {
 
 
     // TODO -- write tests
-    // TODO -- maybe make MEVable
+    // TODO -- what happens when this fails?
     function executeBuyProposal(uint16 _electionIdx) public {
         Election storage electionData = elections[_electionIdx];
         require(electionData.winnerDeclared, "Can't execute until a winner is declared.");
@@ -262,7 +268,7 @@ contract ElectionManager is Ownable {
         electionData.numBuysMade += 1;
         electionData.nextValidBuyBlock += buyCooldownBlocks;
 
-        treasury.buyProposedToken(electionData.winner);
+//        treasury.buyProposedToken(electionData.winner);
     }
 
 }
