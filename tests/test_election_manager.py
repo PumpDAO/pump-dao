@@ -221,3 +221,17 @@ def test_execute_buy(election_manager, test_token_1, accounts):
     election_manager.declareWinner(0, {'from': accounts[0]})
 
     election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+    with reverts("Must wait before executing"):
+        election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+    chain.mine(10)
+    election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+    chain.mine(10)
+    with reverts("Can't exceed maxNumBuys"):
+        election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+
+def test_execute_buy_fails():
+    assert False

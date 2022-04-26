@@ -257,16 +257,15 @@ contract ElectionManager is Ownable {
     }
 
 
-    // TODO -- write tests
     // TODO -- what happens when this fails?
     function executeBuyProposal(uint16 _electionIdx) public {
         Election storage electionData = elections[_electionIdx];
         require(electionData.winnerDeclared, "Can't execute until a winner is declared.");
-        require(electionData.numBuysMade <= maxNumBuys, "Can't exceed maxNumBuys");
+        require(electionData.numBuysMade < maxNumBuys, "Can't exceed maxNumBuys");
         require(electionData.nextValidBuyBlock <= block.number, "Must wait before executing");
 
         electionData.numBuysMade += 1;
-        electionData.nextValidBuyBlock += buyCooldownBlocks;
+        electionData.nextValidBuyBlock = block.number + buyCooldownBlocks;
 
         treasury.buyProposedToken(electionData.winner);
     }

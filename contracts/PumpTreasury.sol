@@ -59,6 +59,7 @@ contract PumpTreasury is Ownable {
         address tokenOut,
         uint256 amount
     ) internal returns (bool) {
+        uint256 blockNumber = block.number;
         IBEP20(tokenIn).approve(address(pancakeRouter), amount);
         address[] memory path = new address[](2);
         path[0] = tokenIn;
@@ -69,7 +70,7 @@ contract PumpTreasury is Ownable {
             0, // amountOutMin
             path, // path
             address(this), // to
-            99999999999 // deadline
+            blockNumber // deadline
         );
         return true;
     }
