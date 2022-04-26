@@ -5,56 +5,61 @@ pragma abicoder v2;
 
 import "./ElectionManager.sol";
 import "./PumpToken.sol";
+import "./lib/SafeBEP20.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ElectionManager.sol";
 
 contract PumpTreasury is Ownable {
-    ElectionManager electionManager;
+    using SafeMath for uint256;
+    using SafeBEP20 for IBEP20;
+
     PumpToken pumpToken;
     IPancakeRouter02 pancakeRouter;
-    address wBNBAddr;
-    // Percent of cannon balance to roll into next voting period
-    uint256 rolloverPercent = 10;
+    IBEP20 wBNB;
+    address electionMangerAddr;
+
     event PumpSell(address _caller, uint256 _amount);
+    event BuyProposedToken(address _tokenAddress, uint256 wBNBAmt);
 
     constructor(
-        address _electionManagerAddr,
-        address _pumpTokenAddr,
+        PumpToken _pumpToken,
         address _wBNBAddr,
         address _pancakeRouterAddr
     ) {
-        electionManager = ElectionManager(_electionManagerAddr);
-        pumpToken = PumpToken(_pumpTokenAddr);
+        pumpToken = _pumpToken;
         pancakeRouter = IPancakeRouter02(_pancakeRouterAddr);
-        wBNBAddr = _wBNBAddr;
+        wBNB = IBEP20(_wBNBAddr);
     }
 
-    function swapPumpForBNB(uint256 _amount) public onlyOwner returns (bool) {
+    function setElectionManagerAddress(address _addr) public onlyOwner {
+        electionMangerAddr = _addr;
+    }
+
+    modifier onlyElectionManager() {
+//        require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
+        _;
+    }
+
+    function swapPumpForBNB(uint256 _amount) public {
         emit PumpSell(msg.sender, _amount);
-        return _performSwap(address(pumpToken), wBNBAddr, _amount);
+        _performSwap(address(pumpToken), address(wBNB), _amount);
     }
 
-//    function fireCannon(uint256 amount) public onlyOwner returns (bool) {
-//        // TODO need to add timing (or size) requirements to this call
-//        address winningToken = electionManager.getWinner().tokenToPumpAddr;
-//        // TODO this is the wrong percent and also isn't used
-//        uint256 fireAmount = SafeMath.div(
-//            // This is the wrong amount
-//            SafeMath.mul(address(this).balance, rolloverPercent),
-//            100
-//        );
-//        _performSwap(wBNBAddr, winningToken, amount);
-//        // TODO emit an event
-//        return true;
-//    }
+    function buyProposedToken(address _tokenAddr) public onlyElectionManager {
+        // Each buy uses 1% of the available treasury
+        uint256 buySize = wBNB.balanceOf(address(this)) / 100;
+        _performSwap(address(wBNB), _tokenAddr, buySize);
+        emit BuyProposedToken(_tokenAddr, buySize);
+    }
 
     function _performSwap(
         address tokenIn,
         address tokenOut,
         uint256 amount
-    ) internal returns (bool) {
-        // TODO possible we need a strong mechanism here
+    ) internal {
+        uint256 blockNumber = block.number;
         IBEP20(tokenIn).approve(address(pancakeRouter), amount);
         address[] memory path = new address[](2);
         path[0] = tokenIn;
@@ -65,9 +70,8 @@ contract PumpTreasury is Ownable {
             0, // amountOutMin
             path, // path
             address(this), // to
-            99999999999 // deadline
+            blockNumber // deadline
         );
-        return true;
     }
 
     // TODO -- implement

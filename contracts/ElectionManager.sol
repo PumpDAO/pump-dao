@@ -12,6 +12,9 @@ contract ElectionManager is Ownable {
     uint256 public winnerDelay;
     uint256 public electionLength;
     address public defaultProposal;
+    uint256 maxNumBuys;
+    uint256 buyCooldownBlocks;
+    uint8 allowedBuyFailures = 1;
 
 
     struct Proposal {
@@ -28,6 +31,7 @@ contract ElectionManager is Ownable {
         uint256 totalVotes;
     }
 
+    // TODO -- comment each fiels
     struct Election {
         uint256 votingStartBlock;
         uint256 votingEndBlock;
@@ -37,6 +41,10 @@ contract ElectionManager is Ownable {
         address[] proposedTokens;
         bool winnerDeclared;
         address winner;
+        // Buy related Data
+        uint8 numBuysMade;
+        uint256 nextValidBuyBlock;
+        uint8 numFailures;
     }
 
     // View only
@@ -46,25 +54,33 @@ contract ElectionManager is Ownable {
         uint256 winnerDeclaredBlock;
         bool winnerDeclared;
         address winner;
+        // Buy related Data
+        uint8 numBuysMade;
+        uint256 nextValidBuyBlock;
     }
 
     uint256 public currElectionIdx;
     mapping(uint256 => Election) public elections;
     VPumpToken public vPumpToken;
     uint256 public proposalCreationTax = 1 * 10**18;
-    address treasuryAddr;
+    PumpTreasury public treasury;
+
 
     event ProposalCreated(uint16 electionIdx, address tokenAddr);
     event VoteDeposited(uint16 electionIdx, address tokenAddr, uint256 amt);
     event VoteWithdrawn(uint16 electionIdx, address tokenAddr, uint256 amt);
     event WinnerDeclared(uint16 electionIdx, address winner, uint256 numVotes);
+    event BuyProposalExecuted(uint256 electionIdx, uint256 wBNBAmt);
 
     constructor(
         VPumpToken _vPumpToken,
         uint256 _startBlock,
         uint256 _winnerDelay,
         uint256 _electionLength,
-        address _defaultProposal
+        address _defaultProposal,
+        PumpTreasury _treasury,
+        uint256 _maxNumBuys,
+        uint256 _buyCooldownBlocks
     ) {
 
         winnerDelay = _winnerDelay;
@@ -72,6 +88,9 @@ contract ElectionManager is Ownable {
         defaultProposal = _defaultProposal;
         vPumpToken = _vPumpToken;
         currElectionIdx = 0;
+        treasury = _treasury;
+        maxNumBuys = _maxNumBuys;
+        buyCooldownBlocks = _buyCooldownBlocks;
 
         Election storage firstElection = elections[0];
         firstElection.votingStartBlock = _startBlock;
@@ -83,14 +102,6 @@ contract ElectionManager is Ownable {
         firstElection.proposals[defaultProposal].createdAt = block.number;
         firstElection.proposedTokens.push(defaultProposal);
 
-    }
-
-    /**
-        @notice Set the address of the PumpCannon
-        @param _cannonAddr The PumpCannon's address
-     */
-    function setCannonAddress(address _cannonAddr) public onlyOwner {
-        treasuryAddr = _cannonAddr;
     }
 
     function createProposal(uint16 _electionIdx, address _tokenAddr)
@@ -241,8 +252,31 @@ contract ElectionManager is Ownable {
             votingEndBlock: election.votingEndBlock,
             winnerDeclaredBlock: election.winnerDeclaredBlock,
             winnerDeclared: election.winnerDeclared,
-            winner: election.winner
+            winner: election.winner,
+            numBuysMade: election.numBuysMade,
+            nextValidBuyBlock: election.nextValidBuyBlock
         });
+    }
+
+
+    function executeBuyProposal(uint16 _electionIdx) public returns (bool) {
+        Election storage electionData = elections[_electionIdx];
+        require(electionData.winnerDeclared, "Can't execute until a winner is declared.");
+        require(electionData.numBuysMade < maxNumBuys, "Can't exceed maxNumBuys");
+        require(electionData.nextValidBuyBlock <= block.number, "Must wait before executing");
+        require(electionData.numFailures < allowedBuyFailures, "Proposal has already failed too many times.");
+
+        try treasury.buyProposedToken(electionData.winner) {
+            electionData.numBuysMade += 1;
+            electionData.nextValidBuyBlock = block.number + buyCooldownBlocks;
+            return true;
+        } catch Error(string memory) {
+            electionData.numFailures += 1;
+            return false;
+        }
+
+        // This return is never hit and is a hack to appease IDE sol static analyzer
+        return true;
     }
 
 }

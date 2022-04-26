@@ -201,3 +201,47 @@ def test_declare_winner_with_proposals(election_manager, test_token_1, test_toke
     assert election_metadata["winnerDeclared"]
     assert election_metadata["winner"] == test_token_1
 
+
+#######################################################################################################
+#######################################################################################################
+
+def test_execute_buy_proposal_no_winner(election_manager, accounts):
+    with reverts("Can't execute until a winner is declared."):
+        election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+
+def test_execute_buy(election_manager, test_token_1, accounts):
+    vpump = VPumpToken.at(election_manager.vPumpToken())
+    election_manager.createProposal(0, test_token_1, {'from': accounts[0], 'value': 1 * 10 ** 18})
+
+    vpump.approve(election_manager, 1000, {'from': accounts[0]})
+    election_manager.vote(0, test_token_1, 1000, {'from': accounts[0]})
+
+    chain.mine(100)
+    election_manager.declareWinner(0, {'from': accounts[0]})
+
+    assert election_manager.executeBuyProposal(0, {'from': accounts[0]}).return_value
+
+    with reverts("Must wait before executing"):
+        election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+    chain.mine(10)
+    assert election_manager.executeBuyProposal(0, {'from': accounts[0]}).return_value
+
+    chain.mine(10)
+    with reverts("Can't exceed maxNumBuys"):
+        election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+
+def test_execute_buy_fails(broken_election_manager, test_token_1, accounts):
+    vpump = VPumpToken.at(broken_election_manager.vPumpToken())
+    broken_election_manager.createProposal(0, test_token_1, {'from': accounts[0], 'value': 1 * 10 ** 18})
+
+    vpump.approve(broken_election_manager, 1000, {'from': accounts[0]})
+    broken_election_manager.vote(0, test_token_1, 1000, {'from': accounts[0]})
+
+    chain.mine(100)
+    broken_election_manager.declareWinner(0, {'from': accounts[0]})
+
+    # what do we do here?
+    broken_election_manager.executeBuyProposal(0, {'from': accounts[0]})

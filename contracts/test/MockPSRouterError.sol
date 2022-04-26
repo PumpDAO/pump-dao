@@ -1,0 +1,210 @@
+pragma solidity ^0.8.0;
+
+import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
+
+contract MockPSRouterError is IPancakeRouter02 {
+    uint256 public removeLiquidityETHWithPermitSupportingFeeOnTransferTokensCount = 0;
+    uint256 public removeLiquidityETHSupportingFeeOnTransferTokensCount = 0;
+    uint256 public getAmountsInCount = 0;
+
+    constructor() {
+
+    }
+
+    function factory() external pure returns (address) {
+        return address(0);
+    }
+
+    function WETH() external pure returns (address) {
+        return address(0);
+    }
+
+    function addLiquidity(
+        address tokenA,
+        address tokenB,
+        uint amountADesired,
+        uint amountBDesired,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB, uint liquidity) {
+        return (0, 0, 0);
+    }
+
+    function addLiquidityETH(
+        address token,
+        uint amountTokenDesired,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external payable returns (uint amountToken, uint amountETH, uint liquidity) {
+        return (0, 0, 0);
+    }
+
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB) {
+        return (0, 0);
+    }
+
+    function removeLiquidityETH(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountToken, uint amountETH) {
+        return (0, 0);
+    }
+
+    function removeLiquidityWithPermit(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountA, uint amountB) {
+        return (0, 0);
+    }
+
+    function removeLiquidityETHWithPermit(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountToken, uint amountETH) {
+        return (0, 0);
+    }
+
+    function swapExactTokensForTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+    function swapTokensForExactTokens(
+        uint amountOut,
+        uint amountInMax,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+    function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB) {
+        return 0;
+    }
+
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut) {
+        return 0;
+    }
+
+    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn) {
+        return 0;
+    }
+
+    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts) {
+        return amounts;
+    }
+
+
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountETH) {
+        removeLiquidityETHSupportingFeeOnTransferTokensCount += 1;
+        return 0;
+    }
+
+    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountETH){
+        removeLiquidityETHWithPermitSupportingFeeOnTransferTokensCount += 1;
+        return 0;
+    }
+
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external {
+        require(1 == 2, "Error making swap");
+    }
+
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external payable {}
+
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external {}
+}
