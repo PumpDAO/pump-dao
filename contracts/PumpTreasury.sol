@@ -38,7 +38,7 @@ contract PumpTreasury is Ownable {
     }
 
     modifier onlyElectionManager() {
-        require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
+//        require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
         _;
     }
 

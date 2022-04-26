@@ -268,7 +268,7 @@ contract ElectionManager is Ownable {
         electionData.numBuysMade += 1;
         electionData.nextValidBuyBlock += buyCooldownBlocks;
 
-//        treasury.buyProposedToken(electionData.winner);
+        treasury.buyProposedToken(electionData.winner);
     }
 
 }
