@@ -28,9 +28,11 @@ def pool_manager(PoolManager, PumpToken, VPumpToken, accounts):
     pump_token.transfer(pool_manager, 100 * 10**6 * 10**18, {'from': accounts[0]})
     return pool_manager
 
+
 @pytest.fixture(scope="module")
 def test_lp_token(TestToken, accounts):
     return TestToken.deploy("Fake LP", "Pump-LP", 18, 100 * 10**18, {'from': accounts[0]})
+
 
 @pytest.fixture(scope="module")
 def election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, ElectionManager, MockPSRouter, accounts):
@@ -48,6 +50,24 @@ def election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, ElectionMan
     pump_treasury.setElectionManagerAddress(election_manager, {'from': accounts[0]})
 
     return election_manager
+
+
+@pytest.fixture(scope="module")
+def broken_election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, ElectionManager, MockPSRouterError, accounts):
+    broken_router = MockPSRouterError.deploy({'from': accounts[0]})
+
+    pump_token = PumpToken.deploy({'from': accounts[0]})
+    test_wbnb = TestToken.deploy("TEST_WBNB", "TEST_WBNB", 18, 100 * 10**18, {'from': accounts[0]})
+    pump_treasury = PumpTreasury.deploy(pump_token, test_wbnb, broken_router, {'from': accounts[0]})
+    test_wbnb.transfer(pump_treasury, 100_000, {'from': accounts[0]})
+
+    vpump_token = VPumpToken.deploy({'from': accounts[0]})
+    vpump_token.mint(accounts[0], 10_000, {'from': accounts[0]})
+
+    election_manager_error = ElectionManager.deploy(vpump_token, 0, 10, 100, DEFAULT_TOKEN, pump_treasury, 2, 10, {'from': accounts[0]})
+    pump_treasury.setElectionManagerAddress(election_manager_error, {'from': accounts[0]})
+
+    return election_manager_error
 
 
 @pytest.fixture(scope="module")

@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 
-contract MockPSRouter is IPancakeRouter02 {
+contract MockPSRouterError is IPancakeRouter02 {
     uint256 public removeLiquidityETHWithPermitSupportingFeeOnTransferTokensCount = 0;
     uint256 public removeLiquidityETHSupportingFeeOnTransferTokensCount = 0;
     uint256 public getAmountsInCount = 0;
@@ -189,7 +189,9 @@ contract MockPSRouter is IPancakeRouter02 {
         address[] calldata path,
         address to,
         uint deadline
-    ) external {}
+    ) external {
+        require(1 == 2, "Error making swap");
+    }
 
     function swapExactETHForTokensSupportingFeeOnTransferTokens(
         uint amountOutMin,

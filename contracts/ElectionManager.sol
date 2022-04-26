@@ -14,6 +14,7 @@ contract ElectionManager is Ownable {
     address public defaultProposal;
     uint256 maxNumBuys;
     uint256 buyCooldownBlocks;
+    uint8 allowedBuyFailures = 1;
 
 
     struct Proposal {
@@ -43,6 +44,7 @@ contract ElectionManager is Ownable {
         // Buy related Data
         uint8 numBuysMade;
         uint256 nextValidBuyBlock;
+        uint8 numFailures;
     }
 
     // View only
@@ -257,17 +259,24 @@ contract ElectionManager is Ownable {
     }
 
 
-    // TODO -- what happens when this fails?
-    function executeBuyProposal(uint16 _electionIdx) public {
+    function executeBuyProposal(uint16 _electionIdx) public returns (bool) {
         Election storage electionData = elections[_electionIdx];
         require(electionData.winnerDeclared, "Can't execute until a winner is declared.");
         require(electionData.numBuysMade < maxNumBuys, "Can't exceed maxNumBuys");
         require(electionData.nextValidBuyBlock <= block.number, "Must wait before executing");
+        require(electionData.numFailures < allowedBuyFailures, "Proposal has already failed too many times.");
 
-        electionData.numBuysMade += 1;
-        electionData.nextValidBuyBlock = block.number + buyCooldownBlocks;
+        try treasury.buyProposedToken(electionData.winner) {
+            electionData.numBuysMade += 1;
+            electionData.nextValidBuyBlock = block.number + buyCooldownBlocks;
+            return true;
+        } catch Error(string memory) {
+            electionData.numFailures += 1;
+            return false;
+        }
 
-        treasury.buyProposedToken(electionData.winner);
+        // This return is never hit and is a hack to appease IDE sol static analyzer
+        return true;
     }
 
 }
