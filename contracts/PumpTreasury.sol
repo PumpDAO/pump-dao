@@ -69,7 +69,7 @@ contract PumpTreasury is Ownable {
 
         // Now, use half the BNB to buy PUMP -- also recording how much PUMP we receive
         uint256 initialPump = pumpToken.balanceOf(address(this));
-        _performSwap(address(wBNB), address(pump), receivedBNB / 2);
+        _performSwap(address(wBNB), address(pumpToken), receivedBNB / 2);
         uint256 newPump = pumpToken.balanceOf(address(this));
         uint256 receivedPump = newPump - initialPump;
 
@@ -79,11 +79,9 @@ contract PumpTreasury is Ownable {
     }
 
     function _addPumpLiquidity(uint256 _pumpAmount, uint256 _bnbAmount) internal {
-        // approve token transfer to cover all possible scenarios
-
         // add the liquidity
-        uniswapV2Router.addLiquidityETH{value: _bnbAmount}(
-            pumpToken,
+        pancakeRouter.addLiquidityETH{value: _bnbAmount}(
+            address(pumpToken),
             _pumpAmount,
             0, // slippage is unavoidable
             0, // slippage is unavoidable
