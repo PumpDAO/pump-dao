@@ -92,7 +92,7 @@ contract PumpToken is Ownable {
     function excludeAddress(address _addrToExclude) public {
         require(
             msg.sender == owner() || msg.sender == electionManagerAddr,
-            "Only owner and ElectionManager can exclude addresses."
+            "Not approved to exclude"
         );
         _cannonTaxExcluded[_addrToExclude] = true;
     }

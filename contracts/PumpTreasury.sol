@@ -15,13 +15,18 @@ contract PumpTreasury is Ownable {
     using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
 
-    PumpToken pumpToken;
-    IPancakeRouter02 pancakeRouter;
-    IBEP20 wBNB;
-    address electionMangerAddr;
+    PumpToken public pumpToken;
+    IPancakeRouter02 public pancakeRouter;
+    IBEP20 public wBNB;
+    address public electionMangerAddr;
 
     event PumpSell(address _caller, uint256 _amount);
     event BuyProposedToken(address _tokenAddress, uint256 wBNBAmt);
+
+    modifier onlyElectionManager() {
+        require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
+        _;
+    }
 
     constructor(
         PumpToken _pumpToken,
@@ -35,11 +40,6 @@ contract PumpTreasury is Ownable {
 
     function setElectionManagerAddress(address _addr) public onlyOwner {
         electionMangerAddr = _addr;
-    }
-
-    modifier onlyElectionManager() {
-//        require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
-        _;
     }
 
     function swapPumpForBNB(uint256 _amount) public {
@@ -88,12 +88,10 @@ contract PumpTreasury is Ownable {
         );
     }
 
-    // TODO -- implement
-    function _addPumpLiquidity(
-        uint256 _pumpAmount
-    ) internal returns (bool) {
-        return true;
-    }
-
-    function donate() public payable {}
+//    // TODO -- implement
+//    function _addPumpLiquidity(
+//        uint256 _pumpAmount
+//    ) internal returns (bool) {
+//        return true;
+//    }
 }
