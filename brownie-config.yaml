@@ -3,6 +3,9 @@
 reports:
   exclude_contracts:
     - SafeMath
+    - MockPSRouter
+    - MockPSRouterError
+    - TestToken
 compiler:
   solc:
     remappings:
