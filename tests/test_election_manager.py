@@ -11,7 +11,7 @@ def test_create_proposal(election_manager, test_token_1, accounts):
 
 def test_create_proposal_wrong_election(election_manager, test_token_1, accounts):
     assert len(election_manager.getActiveProposals()) == 1
-    with reverts("Can only create proposals for current election"):
+    with reverts("Must use currentElectionIdx"):
         election_manager.createProposal(1, test_token_1, {'from': accounts[0], 'value': 1 * 10 ** 18})
     assert len(election_manager.getActiveProposals()) == 1
 
@@ -32,7 +32,7 @@ def test_vote_vpump_not_approved(election_manager, test_token_1, accounts):
     election_manager.createProposal(0, test_token_1, {'from': accounts[0], 'value': 1 * 10 ** 18})
 
     prev_vpump = vpump.balanceOf(accounts[0])
-    with reverts("ElectionManager not approved to transfer enough vPUMP"):
+    with reverts("vPUMP transfer not approved"):
         election_manager.vote(0, test_token_1, 1000, {'from': accounts[0]})
 
     assert vpump.balanceOf(accounts[0]) == prev_vpump
@@ -45,7 +45,7 @@ def test_vote_wrong_election(election_manager, test_token_1, accounts):
 
     vpump.approve(election_manager, 1000, {'from': accounts[0]})
     prev_vpump = vpump.balanceOf(accounts[0])
-    with reverts("Can only vote for active election"):
+    with reverts("Must use currElectionIdx"):
         election_manager.vote(1, test_token_1, 1000, {'from': accounts[0]})
 
     assert vpump.balanceOf(accounts[0]) == prev_vpump
@@ -72,7 +72,7 @@ def test_vote_invalid_proposal(election_manager, test_token_1, accounts):
 
     vpump.approve(election_manager, 1000, {'from': accounts[0]})
     prev_vpump = vpump.balanceOf(accounts[0])
-    with reverts("Can only vote for valid proposals"):
+    with reverts("Must be valid proposal"):
         election_manager.vote(0, accounts[1], 1000, {'from': accounts[0]})
 
     assert vpump.balanceOf(accounts[0]) == prev_vpump
@@ -109,7 +109,7 @@ def test_vote(election_manager, test_token_1, accounts):
 ############################################################################
 
 def test_withdraw_vote_invalid_proposals(election_manager, test_token_1, accounts):
-    with reverts("Can only withdraw votes from a valid proposals"):
+    with reverts("Must be valid proposal"):
         election_manager.withdrawVote(1, test_token_1, 1000, {'from': accounts[0]})
 
 
@@ -119,7 +119,7 @@ def test_withdraw_vote_more_than_cast(election_manager, test_token_1, accounts):
 
     vpump.approve(election_manager, 1000, {'from': accounts[0]})
     election_manager.vote(0, test_token_1, 1000, {'from': accounts[0]})
-    with reverts("Cannot withdraw more votes than cast"):
+    with reverts("More votes than cast"):
         election_manager.withdrawVote(0, test_token_1, 10000, {'from': accounts[0]})
 
 
@@ -154,12 +154,12 @@ def test_withdraw_vote_only_voter(election_manager, test_token_1, accounts):
 ############################################################################
 
 def test_declare_winner_wrong_election(election_manager, accounts):
-    with reverts("Can only declare winner for current election"):
+    with reverts("Must be currElectionIdx"):
         election_manager.declareWinner(1, {'from': accounts[0]})
 
 
 def test_declare_winner_before_end(election_manager, accounts):
-    with reverts("Can only declare winner for election after it has finished"):
+    with reverts("Voting not finished"):
         election_manager.declareWinner(0, {'from': accounts[0]})
 
 
@@ -206,7 +206,7 @@ def test_declare_winner_with_proposals(election_manager, test_token_1, test_toke
 #######################################################################################################
 
 def test_execute_buy_proposal_no_winner(election_manager, accounts):
-    with reverts("Can't execute until a winner is declared."):
+    with reverts("Winner not declared"):
         election_manager.executeBuyProposal(0, {'from': accounts[0]})
 
 
@@ -250,7 +250,7 @@ def test_execute_buy(election_manager, test_token_1, accounts):
     election_manager.withdrawSellVote(0, 1000, {'from': accounts[0]})
     # And prevent us from voting on it again
     vpump.approve(election_manager, 10000, {'from': accounts[0]})
-    with reverts("Can only vote on active sell proposals"):
+    with reverts("SellProposal not active"):
         election_manager.voteSell(0, 10000, {'from': accounts[0]})
 
 

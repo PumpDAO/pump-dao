@@ -46,7 +46,7 @@ contract SellProposal {
     function withdrawVote(uint256 _amount) public {
         require(
             _amount <= votes[msg.sender],
-            "Cannot withdraw more votes than cast"
+            "More votes than cast"
         );
         votes[msg.sender] = votes[msg.sender].sub(_amount);
         // TODO -- wtf happens if this fails?
