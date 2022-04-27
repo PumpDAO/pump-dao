@@ -46,7 +46,19 @@ def election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, ElectionMan
     vpump_token = VPumpToken.deploy({'from': accounts[0]})
     vpump_token.mint(accounts[0], 10_000, {'from': accounts[0]})
 
-    election_manager = ElectionManager.deploy(vpump_token, 0, 10, 100, DEFAULT_TOKEN, pump_treasury, 2, 10, {'from': accounts[0]})
+    election_manager = ElectionManager.deploy(
+        vpump_token,
+        0,
+        10,
+        100,
+        DEFAULT_TOKEN,
+        pump_treasury,
+        2,  # _maxNumBuys
+        10,  # _buyCooldownBlocks
+        10,  # _sellLockupBlocks
+        10,  # _sellHalflifeBlocks
+        {'from': accounts[0]}
+    )
     pump_treasury.setElectionManagerAddress(election_manager, {'from': accounts[0]})
 
     return election_manager
@@ -64,7 +76,19 @@ def broken_election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, Elec
     vpump_token = VPumpToken.deploy({'from': accounts[0]})
     vpump_token.mint(accounts[0], 10_000, {'from': accounts[0]})
 
-    election_manager_error = ElectionManager.deploy(vpump_token, 0, 10, 100, DEFAULT_TOKEN, pump_treasury, 2, 10, {'from': accounts[0]})
+    election_manager_error = ElectionManager.deploy(
+        vpump_token,
+        0,
+        10,
+        100,
+        DEFAULT_TOKEN,
+        pump_treasury,
+        2,  # _maxNumBuys
+        10,  # _buyCooldownBlocks
+        10,  # _sellLockupBlocks
+        10,  # _sellHalflifeBlocks
+        {'from': accounts[0]}
+    )
     pump_treasury.setElectionManagerAddress(election_manager_error, {'from': accounts[0]})
 
     return election_manager_error
