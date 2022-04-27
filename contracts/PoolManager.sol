@@ -52,6 +52,7 @@ contract PoolManager is Ownable, ReentrancyGuard {
     uint256 public totalAllocPoint = 0;
     // The block number when PUMP mining starts.
     uint256 public startBlock;
+    mapping(IBEP20 => bool) public poolExistence;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -78,14 +79,24 @@ contract PoolManager is Ownable, ReentrancyGuard {
         return poolInfo.length;
     }
 
-    mapping(IBEP20 => bool) public poolExistence;
-    modifier nonDuplicated(IBEP20 _lpToken) {
-        require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
-        _;
+    // View function to see pending PUMP on frontend.
+    function pendingPump(uint256 _pid, address _user) external view returns (uint256) {
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][_user];
+        uint256 accPumpPerShare = pool.accPumpPerShare;
+        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
+            uint256 numElapsedBlocks = block.number.sub(pool.lastRewardBlock);
+            uint256 pumpReward = numElapsedBlocks.mul(pumpPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
+            accPumpPerShare = accPumpPerShare.add(pumpReward.mul(1e12).div(lpSupply));
+        }
+        uint256 ret = user.amount.mul(accPumpPerShare).div(1e12).sub(user.rewardDebt);
+        return ret;
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
     function add(uint256 _allocPoint, IBEP20 _lpToken, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
+        require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -107,21 +118,6 @@ contract PoolManager is Ownable, ReentrancyGuard {
         }
         totalAllocPoint = totalAllocPoint.sub(poolInfo[_pid].allocPoint).add(_allocPoint);
         poolInfo[_pid].allocPoint = _allocPoint;
-    }
-
-    // View function to see pending PUMP on frontend.
-    function pendingPump(uint256 _pid, address _user) external view returns (uint256) {
-        PoolInfo storage pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][_user];
-        uint256 accPumpPerShare = pool.accPumpPerShare;
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 numElapsedBlocks = block.number.sub(pool.lastRewardBlock);
-            uint256 pumpReward = numElapsedBlocks.mul(pumpPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accPumpPerShare = accPumpPerShare.add(pumpReward.mul(1e12).div(lpSupply));
-        }
-        uint256 ret = user.amount.mul(accPumpPerShare).div(1e12).sub(user.rewardDebt);
-        return ret;
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
@@ -188,6 +184,20 @@ contract PoolManager is Ownable, ReentrancyGuard {
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
+    //Pancake has to add hidden dummy pools inorder to alter the emission, make it simple and transparent to all.
+    function updateEmissionRate(uint256 _pumpPerBlock) public onlyOwner {
+        massUpdatePools();
+        pumpPerBlock = _pumpPerBlock;
+        emit UpdateEmissionRate(msg.sender, _pumpPerBlock);
+    }
+
+    // Update dev address by the previous dev.
+    function dev(address _devAddr) public {
+        require(msg.sender == devAddr, "dev: wut?");
+        devAddr = _devAddr;
+        emit SetDevAddress(msg.sender, _devAddr);
+    }
+
     // Withdraw without caring about rewards. EMERGENCY ONLY.
     function emergencyWithdraw(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
@@ -208,20 +218,7 @@ contract PoolManager is Ownable, ReentrancyGuard {
         } else {
             transferSuccess = pumpToken.transfer(_to, _amount);
         }
-        require(transferSuccess, "safePumpTransfer: transfer failed");
+        require(transferSuccess, "transfer failed");
     }
 
-    // Update dev address by the previous dev.
-    function dev(address _devAddr) public {
-        require(msg.sender == devAddr, "dev: wut?");
-        devAddr = _devAddr;
-        emit SetDevAddress(msg.sender, _devAddr);
-    }
-
-    //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
-    function updateEmissionRate(uint256 _pumpPerBlock) public onlyOwner {
-        massUpdatePools();
-        pumpPerBlock = _pumpPerBlock;
-        emit UpdateEmissionRate(msg.sender, _pumpPerBlock);
-    }
 }
