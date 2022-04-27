@@ -17,8 +17,8 @@ contract VPumpToken is Ownable {
     uint256 public totalSupply = 0;
 
 
-    mapping(address => uint256) balances;
-    mapping(address => mapping(address => uint256)) allowed;
+    mapping(address => uint256) public balances;
+    mapping(address => mapping(address => uint256)) public allowed;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
@@ -28,32 +28,6 @@ contract VPumpToken is Ownable {
     {
         balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
-    }
-
-    /**
-        @notice Getter to check the current balance of an address
-        @param _owner Address to query the balance of
-        @return Token balance
-     */
-    function balanceOf(address _owner) public view returns (uint256) {
-        return balances[_owner];
-    }
-
-    /**
-        @notice Getter to check the amount of tokens that an owner allowed to a spender
-        @param _owner The address which owns the funds
-        @param _spender The address which will spend the funds
-        @return The amount of tokens still available for the spender
-     */
-    function allowance(
-        address _owner,
-        address _spender
-    )
-        public
-        view
-        returns (uint256)
-    {
-        return allowed[_owner][_spender];
     }
 
     /**
@@ -70,14 +44,6 @@ contract VPumpToken is Ownable {
         allowed[msg.sender][_spender] = _value;
         emit Approval(msg.sender, _spender, _value);
         return true;
-    }
-
-    /** shared logic for transfer and transferFrom */
-    function _transfer(address _from, address _to, uint256 _value) internal {
-        require(balances[_from] >= _value, "Insufficient balance");
-        balances[_from] = balances[_from].sub(_value);
-        balances[_to] = balances[_to].add(_value);
-        emit Transfer(_from, _to, _value);
     }
 
     /**
@@ -127,5 +93,39 @@ contract VPumpToken is Ownable {
         balances[_from] = balances[_from].sub(_value);
         emit Transfer(_from, address(0), _value);
         return true;
+    }
+
+    /**
+        @notice Getter to check the current balance of an address
+        @param _owner Address to query the balance of
+        @return Token balance
+     */
+    function balanceOf(address _owner) public view returns (uint256) {
+        return balances[_owner];
+    }
+
+    /**
+        @notice Getter to check the amount of tokens that an owner allowed to a spender
+        @param _owner The address which owns the funds
+        @param _spender The address which will spend the funds
+        @return The amount of tokens still available for the spender
+     */
+    function allowance(
+        address _owner,
+        address _spender
+    )
+    public
+    view
+    returns (uint256)
+    {
+        return allowed[_owner][_spender];
+    }
+
+    /** shared logic for transfer and transferFrom */
+    function _transfer(address _from, address _to, uint256 _value) internal {
+        require(balances[_from] >= _value, "Insufficient balance");
+        balances[_from] = balances[_from].sub(_value);
+        balances[_to] = balances[_to].add(_value);
+        emit Transfer(_from, _to, _value);
     }
 }
