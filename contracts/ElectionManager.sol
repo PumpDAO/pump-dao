@@ -5,7 +5,6 @@ import "./PumpTreasury.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./vPumpToken.sol";
 
-// TODO -- run solhint across project
 contract ElectionManager is Ownable {
     // View only
     struct BuyProposalMetadata {
@@ -21,7 +20,6 @@ contract ElectionManager is Ownable {
         uint256 createdAt;
     }
 
-    // TODO -- comment each field across all structs
     struct Election {
         uint256 votingStartBlock;
         uint256 votingEndBlock;
@@ -198,11 +196,6 @@ contract ElectionManager is Ownable {
         emit BuyVoteWithdrawn(_electionIdx, _tokenAddr, _amt);
     }
 
-//    function withdrawAllVotes() public {
-//        // TODO implement me
-//    }
-
-    // TODO we may want to make this MEVable
     function declareWinner(uint16 _electionIdx) public {
         require(
             _electionIdx == currElectionIdx,
@@ -217,7 +210,6 @@ contract ElectionManager is Ownable {
         // If no proposals were made, the default proposal wins
         address winningToken = electionMetadata.proposedTokens[0];
         uint256 winningVotes = electionMetadata.proposals[winningToken].totalVotes;
-        // TODO this for loop is a pretty big vulnerability. If the number of active proposals in a single
         // election grows too large this for loop could fully exhaust the maximum per tx gas meaning
         // it would be impossible for a call to getWinner to succeed.
         for (uint256 i = 0; i < electionMetadata.proposedTokens.length; i++) {

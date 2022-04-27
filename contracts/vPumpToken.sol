@@ -4,10 +4,8 @@ pragma solidity ^0.8.0;
 import "./SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-
 // TODO -- validate mint and burn functions
-// TODO -- block transfers to anything
-// other than poolManager
+// TODO -- block transfers to anything other than poolManager
 contract VPumpToken is Ownable {
     using SafeMath for uint256;
 
