@@ -95,7 +95,7 @@ contract PoolManager is Ownable, ReentrancyGuard {
     }
 
     // Add a new lp to the pool. Can only be called by the owner.
-    function add(uint256 _allocPoint, IBEP20 _lpToken, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
+    function add(uint256 _allocPoint, IBEP20 _lpToken, bool _withUpdate) public onlyOwner {
         require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
         if (_withUpdate) {
             massUpdatePools();

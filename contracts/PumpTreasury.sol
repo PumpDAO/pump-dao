@@ -20,8 +20,9 @@ contract PumpTreasury is Ownable {
     IBEP20 public wBNB;
     address public electionMangerAddr;
 
-    event PumpSell(address _caller, uint256 _amount);
-    event BuyProposedToken(address _tokenAddress, uint256 wBNBAmt);
+    event TreasurySwap(address _caller, uint256 _amount);
+    event BuyProposedToken(address _tokenAddress, uint256 _wBNBAmt);
+    event SellAndStake(address _tokenSold, uint256 _pumpStaked, uint256 _bnbStaked);
 
     modifier onlyElectionManager() {
         require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
@@ -43,7 +44,7 @@ contract PumpTreasury is Ownable {
     }
 
     function swapPumpForBNB(uint256 _amount) public {
-        emit PumpSell(msg.sender, _amount);
+        emit TreasurySwap(msg.sender, _amount);
         _performSwap(address(pumpToken), address(wBNB), _amount);
     }
 
@@ -60,12 +61,35 @@ contract PumpTreasury is Ownable {
     }
 
     function sellProposedToken(address _tokenAddr, uint256 _amt) public onlyElectionManager {
-        // Each buy uses 1% of the available treasury
+        // First sell the position and record how much BNB we receive for it
+        uint256 initialBalance = address(this).balance;
         _performSwap(_tokenAddr, address(wBNB), _amt);
+        uint256 newBalance = address(this).balance;
+        uint256 receivedBNB = newBalance - initialBalance;
 
-        // TODO -- buy back pump, stake and burn
-        // TODO -- emit event
+        // Now, use half the BNB to buy PUMP -- also recording how much PUMP we receive
+        uint256 initialPump = pumpToken.balanceOf(address(this));
+        _performSwap(address(wBNB), address(pump), receivedBNB / 2);
+        uint256 newPump = pumpToken.balanceOf(address(this));
+        uint256 receivedPump = newPump - initialPump;
 
+        // Now stake the received PUMP against the remaining BNB
+        _addPumpLiquidity(receivedPump, receivedBNB);
+        emit SellAndStake(_tokenAddr, receivedPump, receivedBNB);
+    }
+
+    function _addPumpLiquidity(uint256 _pumpAmount, uint256 _bnbAmount) internal {
+        // approve token transfer to cover all possible scenarios
+
+        // add the liquidity
+        uniswapV2Router.addLiquidityETH{value: _bnbAmount}(
+            pumpToken,
+            _pumpAmount,
+            0, // slippage is unavoidable
+            0, // slippage is unavoidable
+            address(this),
+            block.timestamp
+        );
     }
 
 
@@ -84,14 +108,7 @@ contract PumpTreasury is Ownable {
             0, // amountOutMin
             path, // path
             address(this), // to
-            blockNumber // deadline
+            block.timestamp // deadline
         );
     }
-
-//    // TODO -- implement
-//    function _addPumpLiquidity(
-//        uint256 _pumpAmount
-//    ) internal returns (bool) {
-//        return true;
-//    }
 }
