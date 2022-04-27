@@ -47,12 +47,27 @@ contract PumpTreasury is Ownable {
         _performSwap(address(pumpToken), address(wBNB), _amount);
     }
 
-    function buyProposedToken(address _tokenAddr) public onlyElectionManager {
+    function buyProposedToken(address _tokenAddr) public onlyElectionManager returns (uint256) {
         // Each buy uses 1% of the available treasury
         uint256 buySize = wBNB.balanceOf(address(this)) / 100;
+
+        uint256 startingAmt = IBEP20(_tokenAddr).balanceOf(address(this));
         _performSwap(address(wBNB), _tokenAddr, buySize);
+        uint256 endingAmt = IBEP20(_tokenAddr).balanceOf(address(this));
         emit BuyProposedToken(_tokenAddr, buySize);
+
+        return endingAmt - startingAmt;
     }
+
+    function sellProposedToken(address _tokenAddr, uint256 _amt) public onlyElectionManager {
+        // Each buy uses 1% of the available treasury
+        _performSwap(_tokenAddr, address(wBNB), _amt);
+
+        // TODO -- buy back pump, stake and burn
+        // TODO -- emit event
+
+    }
+
 
     function _performSwap(
         address tokenIn,
@@ -64,7 +79,6 @@ contract PumpTreasury is Ownable {
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = tokenOut;
-        // TODO -- how does it work when this fails? What do we do?
         pancakeRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(
             amount, // amountIn
             0, // amountOutMin

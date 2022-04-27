@@ -14,10 +14,12 @@ contract ElectionManager is Ownable {
     address public defaultProposal;
     uint256 maxNumBuys;
     uint256 buyCooldownBlocks;
-    uint8 allowedBuyFailures = 1;
+    uint8 maxBuyFailures = 2;
 
+    uint256 public sellLockupBlocks;
+    uint256 public sellHalfLifeBlocks;
 
-    struct Proposal {
+    struct BuyProposal {
         address proposer;
         uint256 createdAt;
         uint256 totalVotes;
@@ -25,26 +27,40 @@ contract ElectionManager is Ownable {
     }
 
     // View only
-    struct ProposalMetadata {
+    struct BuyProposalMetadata {
         address proposer;
         uint256 createdAt;
         uint256 totalVotes;
     }
 
-    // TODO -- comment each fiels
+    // View Only
+    struct SellProposalMetadata {
+        bool valid;
+        uint256 totalVotes;
+        uint256 createdAt;
+    }
+
+    // TODO -- comment each field across all structs
     struct Election {
         uint256 votingStartBlock;
         uint256 votingEndBlock;
         uint256 winnerDeclaredBlock;
         mapping(address => bool) validProposals;
-        mapping(address => Proposal) proposals;
+        mapping(address => BuyProposal) proposals;
         address[] proposedTokens;
         bool winnerDeclared;
         address winner;
+        uint256 purchasedAmt;
         // Buy related Data
         uint8 numBuysMade;
         uint256 nextValidBuyBlock;
         uint8 numFailures;
+
+        // Sell related data
+        bool sellProposalActive;
+        uint256 sellProposalTotalVotes;
+        uint256 sellProposalCreatedAt;
+        mapping(address => uint256) sellVotes;
     }
 
     // View only
@@ -57,6 +73,11 @@ contract ElectionManager is Ownable {
         // Buy related Data
         uint8 numBuysMade;
         uint256 nextValidBuyBlock;
+        uint8 numFailures;
+        // Sell related data
+        bool sellProposalActive;
+        uint256 sellProposalTotalVotes;
+        uint256 sellProposalCreatedAt;
     }
 
     uint256 public currElectionIdx;
@@ -67,10 +88,12 @@ contract ElectionManager is Ownable {
 
 
     event ProposalCreated(uint16 electionIdx, address tokenAddr);
-    event VoteDeposited(uint16 electionIdx, address tokenAddr, uint256 amt);
-    event VoteWithdrawn(uint16 electionIdx, address tokenAddr, uint256 amt);
+    event BuyVoteDeposited(uint16 electionIdx, address tokenAddr, uint256 amt);
+    event SellVoteDeposited(uint16 electionIdx, address tokenAddr, uint256 amt);
+    event BuyVoteWithdrawn(uint16 electionIdx, address tokenAddr, uint256 amt);
+    event SellVoteWithdrawn(uint16 electionIdx, address tokenAddr, uint256 amt);
     event WinnerDeclared(uint16 electionIdx, address winner, uint256 numVotes);
-    event BuyProposalExecuted(uint256 electionIdx, uint256 wBNBAmt);
+    event SellProposalExecuted(uint16 electionIdx);
 
     constructor(
         VPumpToken _vPumpToken,
@@ -80,7 +103,9 @@ contract ElectionManager is Ownable {
         address _defaultProposal,
         PumpTreasury _treasury,
         uint256 _maxNumBuys,
-        uint256 _buyCooldownBlocks
+        uint256 _buyCooldownBlocks,
+        uint256 _sellLockupBlocks,
+        uint256 _sellHalfLifeBlocks
     ) {
 
         winnerDelay = _winnerDelay;
@@ -91,6 +116,8 @@ contract ElectionManager is Ownable {
         treasury = _treasury;
         maxNumBuys = _maxNumBuys;
         buyCooldownBlocks = _buyCooldownBlocks;
+        sellLockupBlocks = _sellLockupBlocks;
+        sellHalfLifeBlocks = _sellHalfLifeBlocks;
 
         Election storage firstElection = elections[0];
         firstElection.votingStartBlock = _startBlock;
@@ -130,7 +157,6 @@ contract ElectionManager is Ownable {
         emit ProposalCreated(_electionIdx, _tokenAddr);
     }
 
-    // TODO -- measure the cost of gas on this
     function vote(uint16 _electionIdx, address _tokenAddr, uint256 _amt) public {
         require(
             vPumpToken.allowance(msg.sender, address(this)) >= _amt,
@@ -149,21 +175,21 @@ contract ElectionManager is Ownable {
             electionMetadata.validProposals[_tokenAddr],
             "Can only vote for valid proposals"
         );
-        Proposal storage proposal = electionMetadata.proposals[_tokenAddr];
+        BuyProposal storage proposal = electionMetadata.proposals[_tokenAddr];
         proposal.votes[msg.sender] += _amt;
         proposal.totalVotes += _amt;
         vPumpToken.transferFrom(msg.sender, address(this), _amt);
 
-        emit VoteDeposited(_electionIdx, _tokenAddr, _amt);
+        emit BuyVoteDeposited(_electionIdx, _tokenAddr, _amt);
     }
 
     function withdrawVote(uint16 _electionIdx, address _tokenAddr, uint256 _amt) public {
-        Election storage electionMetadata = elections[currElectionIdx];
+        Election storage electionMetadata = elections[_electionIdx];
         require(
             electionMetadata.validProposals[_tokenAddr],
             "Can only withdraw votes from a valid proposals"
         );
-        Proposal storage proposal = electionMetadata.proposals[_tokenAddr];
+        BuyProposal storage proposal = electionMetadata.proposals[_tokenAddr];
         require(
             proposal.votes[msg.sender] >= _amt,
             "Cannot withdraw more votes than cast"
@@ -172,7 +198,7 @@ contract ElectionManager is Ownable {
         proposal.totalVotes -= _amt;
         vPumpToken.transfer(msg.sender, _amt);
 
-        emit VoteWithdrawn(_electionIdx, _tokenAddr, _amt);
+        emit BuyVoteWithdrawn(_electionIdx, _tokenAddr, _amt);
     }
 
     function withdrawAllVotes() public {
@@ -199,7 +225,7 @@ contract ElectionManager is Ownable {
         // it would be impossible for a call to getWinner to succeed.
         for (uint256 i = 0; i < electionMetadata.proposedTokens.length; i++) {
             address tokenAddr = electionMetadata.proposedTokens[i];
-            Proposal storage proposal = electionMetadata.proposals[tokenAddr];
+            BuyProposal storage proposal = electionMetadata.proposals[tokenAddr];
             if (proposal.totalVotes > winningVotes) {
                 winningToken = tokenAddr;
                 winningVotes = proposal.totalVotes;
@@ -229,13 +255,13 @@ contract ElectionManager is Ownable {
     function getProposal(
         uint16 _electionIdx,
         address _tokenAddr
-    ) public view returns (ProposalMetadata memory) {
+    ) public view returns (BuyProposalMetadata memory) {
         require(
             elections[currElectionIdx].validProposals[_tokenAddr],
             "No valid proposal for args"
         );
-        Proposal storage proposal = elections[currElectionIdx].proposals[_tokenAddr];
-        return ProposalMetadata({
+        BuyProposal storage proposal = elections[currElectionIdx].proposals[_tokenAddr];
+        return BuyProposalMetadata({
             proposer: proposal.proposer,
             createdAt: proposal.createdAt,
             totalVotes: proposal.totalVotes
@@ -254,24 +280,69 @@ contract ElectionManager is Ownable {
             winnerDeclared: election.winnerDeclared,
             winner: election.winner,
             numBuysMade: election.numBuysMade,
-            nextValidBuyBlock: election.nextValidBuyBlock
+            nextValidBuyBlock: election.nextValidBuyBlock,
+            numFailures: election.numFailures,
+            sellProposalActive: election.sellProposalActive,
+            sellProposalTotalVotes: election.sellProposalTotalVotes,
+            sellProposalCreatedAt: election.sellProposalCreatedAt
         });
     }
 
+    function voteSell(uint16 _electionIdx, uint256 _amt) public {
+        require(
+            vPumpToken.allowance(msg.sender, address(this)) >= _amt,
+            "ElectionManager not approved to transfer enough vPUMP"
+        );
+        Election storage electionData = elections[_electionIdx];
+        require(electionData.sellProposalActive, "Can only vote on active sell proposals");
+
+        electionData.sellVotes[msg.sender] += _amt;
+        electionData.sellProposalTotalVotes += _amt;
+        vPumpToken.transferFrom(msg.sender, address(this), _amt);
+
+        emit SellVoteDeposited(_electionIdx, electionData.winner, _amt);
+    }
+
+    function withdrawSellVote(uint16 _electionIdx, uint256 _amt) public {
+        Election storage electionData = elections[_electionIdx];
+        require(
+            electionData.sellVotes[msg.sender] >= _amt,
+            "Cannot withdraw more votes than cast"
+        );
+
+        electionData.sellVotes[msg.sender] -= _amt;
+        electionData.sellProposalTotalVotes -= _amt;
+        vPumpToken.transfer(msg.sender, _amt);
+
+        emit SellVoteWithdrawn(_electionIdx, electionData.winner, _amt);
+    }
 
     function executeBuyProposal(uint16 _electionIdx) public returns (bool) {
         Election storage electionData = elections[_electionIdx];
         require(electionData.winnerDeclared, "Can't execute until a winner is declared.");
         require(electionData.numBuysMade < maxNumBuys, "Can't exceed maxNumBuys");
         require(electionData.nextValidBuyBlock <= block.number, "Must wait before executing");
-        require(electionData.numFailures < allowedBuyFailures, "Proposal has already failed too many times.");
+        require(electionData.numFailures < maxBuyFailures, "Proposal has already failed too many times.");
+        require(!electionData.sellProposalActive, "Sell Proposal already active.");
 
-        try treasury.buyProposedToken(electionData.winner) {
+        try treasury.buyProposedToken(electionData.winner) returns (uint256 _purchasedAmt) {
+            electionData.purchasedAmt += _purchasedAmt;
             electionData.numBuysMade += 1;
             electionData.nextValidBuyBlock = block.number + buyCooldownBlocks;
+            // If we've now made the max number of buys, mark the associatedSellProposal
+            // as active and mark the amount of accumulated hilding token
+            if (electionData.numBuysMade >= maxNumBuys) {
+                electionData.sellProposalActive = true;
+                electionData.sellProposalCreatedAt = block.number;
+            }
             return true;
         } catch Error(string memory) {
             electionData.numFailures += 1;
+            // If we've exceeded the number of allowed failures
+            if (electionData.numFailures >= maxBuyFailures) {
+                electionData.sellProposalActive = true;
+                electionData.sellProposalCreatedAt = block.number;
+            }
             return false;
         }
 
@@ -279,4 +350,35 @@ contract ElectionManager is Ownable {
         return true;
     }
 
+    function executeSellProposal(uint16 _electionIdx) public {
+        Election storage electionData = elections[_electionIdx];
+        require(electionData.sellProposalActive, "Can only execute an active sellProposal");
+        uint256 requiredVotes = _getRequiredSellVPump(electionData.sellProposalCreatedAt);
+        require(electionData.sellProposalTotalVotes >= requiredVotes, "Not enough votes to execute");
+
+        treasury.sellProposedToken(electionData.winner, electionData.purchasedAmt);
+        // After we've sold, mark the sell proposal as inactive so we don't sell again
+        electionData.sellProposalActive = false;
+        emit SellProposalExecuted(_electionIdx);
+    }
+
+    function _getRequiredSellVPump(uint256 _startBlock) public view returns (uint256) {
+        uint256 outstandingVPump = vPumpToken.totalSupply();
+        uint256 elapsedBlocks = block.number - _startBlock;
+        if (elapsedBlocks <= sellLockupBlocks) {
+            return outstandingVPump;
+        }
+        uint256 decayPeriodBlocks = elapsedBlocks - sellLockupBlocks;
+        return _appxDecay(outstandingVPump, decayPeriodBlocks, sellHalfLifeBlocks);
+    }
+
+    function _appxDecay(
+        uint256 _startValue,
+        uint256 _elapsedTime,
+        uint256 _halfLife
+    ) internal view returns (uint256) {
+        uint256 ret = _startValue >> (_elapsedTime / _halfLife);
+        ret -= ret * (_elapsedTime % _halfLife) / _halfLife / 2;
+        return ret;
+    }
 }

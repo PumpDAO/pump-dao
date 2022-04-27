@@ -225,12 +225,33 @@ def test_execute_buy(election_manager, test_token_1, accounts):
     with reverts("Must wait before executing"):
         election_manager.executeBuyProposal(0, {'from': accounts[0]})
 
+    assert not election_manager.getElectionMetadata(0)["sellProposalActive"]
     chain.mine(10)
+
     assert election_manager.executeBuyProposal(0, {'from': accounts[0]}).return_value
+    assert election_manager.getElectionMetadata(0)["sellProposalActive"]
 
     chain.mine(10)
     with reverts("Can't exceed maxNumBuys"):
         election_manager.executeBuyProposal(0, {'from': accounts[0]})
+
+    # Now move onto voting to sell
+    with reverts("Not enough votes to execute"):
+        election_manager.executeSellProposal(0, {'from': accounts[0]})
+
+    election_manager.withdrawVote(0, test_token_1, 1000, {'from': accounts[0]})
+    vpump.approve(election_manager, 10000, {'from': accounts[0]})
+    election_manager.voteSell(0, 10000, {'from': accounts[0]})
+
+    # We should not be able to exeucte the sell proposal
+    election_manager.executeSellProposal(0, {'from': accounts[0]})
+    # Which should mark the sell proposal as inactive
+    assert not election_manager.getElectionMetadata(0)["sellProposalActive"]
+    election_manager.withdrawSellVote(0, 1000, {'from': accounts[0]})
+    # And prevent us from voting on it again
+    vpump.approve(election_manager, 10000, {'from': accounts[0]})
+    with reverts("Can only vote on active sell proposals"):
+        election_manager.voteSell(0, 10000, {'from': accounts[0]})
 
 
 def test_execute_buy_fails(broken_election_manager, test_token_1, accounts):
@@ -243,5 +264,19 @@ def test_execute_buy_fails(broken_election_manager, test_token_1, accounts):
     chain.mine(100)
     broken_election_manager.declareWinner(0, {'from': accounts[0]})
 
-    # what do we do here?
-    broken_election_manager.executeBuyProposal(0, {'from': accounts[0]})
+    assert broken_election_manager.getElectionMetadata(0)["numFailures"] == 0
+    assert not broken_election_manager.executeBuyProposal(0, {'from': accounts[0]}).return_value
+
+    # The fail count should now be 1
+    assert broken_election_manager.getElectionMetadata(0)["numFailures"] == 1
+    # But the sell proposal should _not_ be active
+    assert not broken_election_manager.getElectionMetadata(0)["sellProposalActive"]
+
+    # But if we fail again
+    assert not broken_election_manager.executeBuyProposal(0, {'from': accounts[0]}).return_value
+    # Then it should be active
+    assert broken_election_manager.getElectionMetadata(0)["sellProposalActive"]
+
+
+#######################################################################################################
+#######################################################################################################
