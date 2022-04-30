@@ -4,8 +4,6 @@ pragma solidity ^0.8.0;
 import "./SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-// TODO -- validate mint and burn functions
-// TODO -- block transfers to anything other than poolManager
 contract VPumpToken is Ownable {
     using SafeMath for uint256;
 
@@ -13,6 +11,8 @@ contract VPumpToken is Ownable {
     string public name = "Voting Pump";
     uint256 public decimals = 18;
     uint256 public totalSupply = 0;
+    address public canMintBurn;
+    address public electionManager;
 
 
     mapping(address => uint256) public balances;
@@ -21,11 +21,24 @@ contract VPumpToken is Ownable {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    constructor(
-    )
+   modifier onlyCanMintBurn {
+      require(msg.sender == canMintBurn, "Must have mintBurn role");
+      _;
+   }
+
+    constructor()
     {
+        canMintBurn = msg.sender;
         balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
+    }
+
+    function setCanMintBurn(address _canMintBurn) public onlyOwner {
+        canMintBurn = _canMintBurn;
+    }
+
+    function setElectionManagerAddress(address _electionManager) public onlyOwner {
+        electionManager = _electionManager;
     }
 
     /**
@@ -76,16 +89,14 @@ contract VPumpToken is Ownable {
         return true;
     }
 
-    function mint(address _to, uint256 _value) public returns (bool) {
-        // TODO require check for some sort of contract owner
+    function mint(address _to, uint256 _value) public onlyCanMintBurn returns (bool) {
         totalSupply = totalSupply.add(_value);
         balances[_to] = balances[_to].add(_value);
         emit Transfer(address(0), _to, _value);
         return true;
     }
 
-    function burn(address _from, uint256 _value) public returns(bool) {
-        // TODO require check for some sort of contract owner
+    function burn(address _from, uint256 _value) public onlyCanMintBurn returns(bool) {
         require(balances[_from] >= _value, "Insufficient balance");
         totalSupply = totalSupply.sub(_value);
         balances[_from] = balances[_from].sub(_value);
@@ -120,8 +131,12 @@ contract VPumpToken is Ownable {
     }
 
     /** shared logic for transfer and transferFrom */
+    // Note: _vPump is deliberately non-transferable unless it is to or from the electionManager contract
+    // this is to avoid secondary markets from popping up
     function _transfer(address _from, address _to, uint256 _value) internal {
         require(balances[_from] >= _value, "Insufficient balance");
+        // TODO -- add test for this
+        require(_from == electionManager || _to == electionManager, "Can only transfer to electionManager");
         balances[_from] = balances[_from].sub(_value);
         balances[_to] = balances[_to].add(_value);
         emit Transfer(_from, _to, _value);

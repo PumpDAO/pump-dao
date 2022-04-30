@@ -97,7 +97,7 @@ def test_vote(election_manager, test_token_1, accounts):
     assert vpump.balanceOf(accounts[0]) == prev_vpump - 1000
     assert election_manager.getProposal(0, test_token_1)["totalVotes"] == 2000
 
-    vpump.transfer(accounts[1], 100, {'from': accounts[0]})
+    vpump.mint(accounts[1], 100, {'from': accounts[0]})
     vpump.approve(election_manager, 100, {'from': accounts[1]})
     election_manager.vote(0, test_token_1, 100, {'from': accounts[1]})
 
@@ -138,7 +138,7 @@ def test_withdraw_vote_only_voter(election_manager, test_token_1, accounts):
     assert vpump.balanceOf(accounts[0]) == prev_vpump + 500
     assert election_manager.getProposal(0, test_token_1)["totalVotes"] == prev_votes - 500
 
-    vpump.transfer(accounts[1], 100, {'from': accounts[0]})
+    vpump.mint(accounts[1], 100, {'from': accounts[0]})
     vpump.approve(election_manager, 100, {'from': accounts[1]})
     election_manager.vote(0, test_token_1, 100, {'from': accounts[1]})
 
@@ -190,7 +190,7 @@ def test_declare_winner_with_proposals(election_manager, test_token_1, test_toke
     assert vpump.balanceOf(accounts[0]) == prev_vpump - 1000
     assert election_manager.getProposal(0, test_token_1)["totalVotes"] == 2000
 
-    vpump.transfer(accounts[1], 100, {'from': accounts[0]})
+    vpump.mint(accounts[1], 100, {'from': accounts[0]})
     vpump.approve(election_manager, 100, {'from': accounts[1]})
     election_manager.createProposal(0, test_token_2, {'from': accounts[1], 'value': 1 * 10 ** 18})
     election_manager.vote(0, test_token_2, 100, {'from': accounts[1]})

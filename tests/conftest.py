@@ -15,7 +15,7 @@ def isolate(fn_isolation):
 
 
 @pytest.fixture(scope="module")
-def token(PumpToken, accounts):
+def pump_token(PumpToken, accounts):
     return PumpToken.deploy({'from': accounts[0]})
 
 
@@ -24,6 +24,7 @@ def pool_manager(PoolManager, PumpToken, VPumpToken, accounts):
     pump_token = PumpToken.deploy({'from': accounts[0]})
     vpump_token = VPumpToken.deploy({'from': accounts[0]})
     pool_manager = PoolManager.deploy(pump_token, vpump_token, accounts[0], 100, 0, {'from': accounts[0]})
+    vpump_token.setCanMintBurn(pool_manager, {'from': accounts[0]})
     pump_token.excludeAddress(pool_manager, {'from': accounts[0]})
     pump_token.transfer(pool_manager, 100 * 10**6 * 10**18, {'from': accounts[0]})
     return pool_manager
@@ -60,6 +61,7 @@ def election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, ElectionMan
         {'from': accounts[0]}
     )
     pump_treasury.setElectionManagerAddress(election_manager, {'from': accounts[0]})
+    vpump_token.setElectionManagerAddress(election_manager, {'from': accounts[0]})
 
     return election_manager
 
@@ -90,6 +92,7 @@ def broken_election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, Elec
         {'from': accounts[0]}
     )
     pump_treasury.setElectionManagerAddress(election_manager_error, {'from': accounts[0]})
+    vpump_token.setElectionManagerAddress(election_manager_error, {'from': accounts[0]})
 
     return election_manager_error
 
