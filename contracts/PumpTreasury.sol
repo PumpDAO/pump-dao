@@ -64,6 +64,7 @@ contract PumpTreasury is Ownable {
         uint256 initialBalance = address(this).balance;
         _performSwap(_tokenAddr, address(wBNB), _amt);
         uint256 newBalance = address(this).balance;
+        // TODO -- should we be checking BNB here or WBNB
         uint256 receivedBNB = newBalance - initialBalance;
 
         // Now, use half the BNB to buy PUMP -- also recording how much PUMP we receive
