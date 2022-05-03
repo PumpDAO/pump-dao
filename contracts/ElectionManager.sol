@@ -111,7 +111,7 @@ contract ElectionManager is Ownable, Initializable {
     uint256 public proposalCreationTax = 0.25 * 10**18;
     PumpTreasury public treasury;
     // The maximum number of allowed proposals per election.
-    uint maxProposalsPerElection = 100;
+    uint8 maxProposalsPerElection = 100;
 
 
     event ProposalCreated(uint16 electionIdx, address tokenAddr);

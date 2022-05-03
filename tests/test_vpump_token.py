@@ -6,7 +6,7 @@ def test_only_election_manager_can_transfer(election_manager, accounts):
 
     initial_vpump = vpump.balanceOf(accounts[0])
     assert initial_vpump > 0
-    with reverts('Can only transfer to electionManager'):
+    with reverts('Only transfer electionManager'):
         vpump.transfer(accounts[1], 1, {'from': accounts[0]})
 
     assert vpump.balanceOf(accounts[0]) == initial_vpump

@@ -96,7 +96,6 @@ contract PumpTreasury is Ownable, Initializable {
         address tokenOut,
         uint256 amount
     ) internal {
-        uint256 blockNumber = block.number;
         IBEP20(tokenIn).approve(address(pancakeRouter), amount);
         address[] memory path = new address[](2);
         path[0] = tokenIn;

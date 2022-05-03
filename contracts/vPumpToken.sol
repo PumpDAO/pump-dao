@@ -136,7 +136,7 @@ contract VPumpToken is Ownable, Initializable {
     // this is to avoid secondary markets from popping up
     function _transfer(address _from, address _to, uint256 _value) internal {
         require(balances[_from] >= _value, "Insufficient balance");
-        require(_from == electionManager || _to == electionManager, "Can only transfer to electionManager");
+        require(_from == electionManager || _to == electionManager, "Only transfer electionManager");
         balances[_from] = balances[_from].sub(_value);
         balances[_to] = balances[_to].add(_value);
         emit Transfer(_from, _to, _value);
