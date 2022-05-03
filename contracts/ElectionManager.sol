@@ -3,9 +3,10 @@ pragma solidity ^0.8.0;
 import "./PumpToken.sol";
 import "./PumpTreasury.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./vPumpToken.sol";
 
-contract ElectionManager is Ownable {
+contract ElectionManager is Ownable, Initializable {
     // View only
     struct BuyProposalMetadata {
         address proposer;
@@ -90,7 +91,8 @@ contract ElectionManager is Ownable {
     event WinnerDeclared(uint16 electionIdx, address winner, uint256 numVotes);
     event SellProposalExecuted(uint16 electionIdx);
 
-    constructor(
+    // Initialize takes the place of constructor in order to use a proxy pattern to upgrade later
+    function initialize(
         VPumpToken _vPumpToken,
         uint256 _startBlock,
         uint256 _winnerDelay,
@@ -101,8 +103,7 @@ contract ElectionManager is Ownable {
         uint256 _buyCooldownBlocks,
         uint256 _sellLockupBlocks,
         uint256 _sellHalfLifeBlocks
-    ) {
-
+    ) public initializer {
         winnerDelay = _winnerDelay;
         electionLength = _electionLength;
         defaultProposal = _defaultProposal;

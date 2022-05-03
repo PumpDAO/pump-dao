@@ -9,8 +9,10 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "./PumpToken.sol";
 import "./vPumpToken.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-contract PoolManager is Ownable, ReentrancyGuard {
+
+contract PoolManager is Ownable, ReentrancyGuard, Initializable {
     using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
 
@@ -61,13 +63,13 @@ contract PoolManager is Ownable, ReentrancyGuard {
     event SetDevAddress(address indexed user, address indexed newAddress);
     event UpdateEmissionRate(address indexed user, uint256 goosePerBlock);
 
-    constructor(
+    function initialize(
         PumpToken _pumpToken,
         VPumpToken _vPumpToken,
         address _devAddr,
         uint256 _pumpPerBlock,
         uint256 _startBlock
-    ) {
+    ) public initializer {
         pumpToken = _pumpToken;
         vPumpToken = _vPumpToken;
         devAddr = _devAddr;

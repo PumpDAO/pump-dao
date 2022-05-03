@@ -3,8 +3,10 @@ pragma solidity ^0.8.0;
 
 import "./lib/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-contract VPumpToken is Ownable {
+
+contract VPumpToken is Ownable, Initializable {
     using SafeMath for uint256;
 
     string public symbol = "VPUMP";
@@ -26,8 +28,7 @@ contract VPumpToken is Ownable {
       _;
    }
 
-    constructor()
-    {
+   function initialize() public initializer {
         canMintBurn = msg.sender;
         balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
