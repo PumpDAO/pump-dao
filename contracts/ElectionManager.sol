@@ -7,14 +7,14 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./vPumpToken.sol";
 
 contract ElectionManager is Ownable, Initializable {
-    // View only
+    // View only struct -- used to group data returned by view functions
     struct BuyProposalMetadata {
         address proposer;
         uint256 createdAt;
         uint256 totalVotes;
     }
 
-    // View Only
+    // View only struct -- used to group data returned by view functions
     struct SellProposalMetadata {
         bool valid;
         uint256 totalVotes;
@@ -22,28 +22,42 @@ contract ElectionManager is Ownable, Initializable {
     }
 
     struct Election {
+        // The first block on which votes for this election can be cast
         uint256 votingStartBlock;
+        // The last block on which votes for this election will be accepted, after this calls to vote will revert
         uint256 votingEndBlock;
+        // The first block where a winner for the election can be declared. Intentionally different than votingEndBlock
+        // in order to prevent flash loan attacks
         uint256 winnerDeclaredBlock;
+        // Mapping from proposed taken address to bool indicating if this token has been proposed in this election
         mapping(address => bool) validProposals;
+        // Mapping from proposed token address to data about the proposal
         mapping(address => BuyProposal) proposals;
+        // Array of proposed token addresses -- useful for iterating over all proposals
         address[] proposedTokens;
+        // Bool indicating if the winner has already been declared for this proposal
         bool winnerDeclared;
+        // The address of the winning token
         address winner;
+        // The amount of the winning token that has been purchased as a result of this election
         uint256 purchasedAmt;
-        // Buy related Data
+        // The number of buys made for this election. Should never exceed the global maxBuys
         uint8 numBuysMade;
+        // The next block on which a buy order can be made for this election
         uint256 nextValidBuyBlock;
+        // The number of attempted buys that have failed for this election
         uint8 numFailures;
-
-        // Sell related data
+        // Indicates if sell proposal votes can be cast for this election
         bool sellProposalActive;
+        // The total number of sell votes that have been cast for the sell proposal
         uint256 sellProposalTotalVotes;
+        // The block number on which this sell proposal was created
         uint256 sellProposalCreatedAt;
+        // Mapping from account to the number of sell votes they have cast for this election
         mapping(address => uint256) sellVotes;
     }
 
-    // View only
+    // View only struct -- used to group data returned by view functions
     struct ElectionMetadata {
         uint256 votingStartBlock;
         uint256 votingEndBlock;
@@ -60,27 +74,44 @@ contract ElectionManager is Ownable, Initializable {
         uint256 sellProposalCreatedAt;
     }
 
+    // Data related to a single buy proposal within an election
     struct BuyProposal {
+        // Address of the accounts / contract that proposed the token
         address proposer;
+        // The block that the proposal was created
         uint256 createdAt;
+        // The total number of votes cast for this proposal
         uint256 totalVotes;
+        // Mapping from account to the number of votes they have cast for this proposal
         mapping(address => uint256) votes;
     }
 
     // The number of blocks between when voting ends and a winner is declared. Prevents flash loan attacks.
     uint256 public winnerDelay;
+    // Time between the start of an election and when the winner is declared
     uint256 public electionLength;
+    // Address of the token for which a proposal will always be created by default
     address public defaultProposal;
+    // The number of buys that will be made for each winning token (assuming the maxBuyFailures is not hit)
     uint256 public maxNumBuys;
+    // The number of blocks to wait between each buy is made
     uint256 public buyCooldownBlocks;
+    // The number of allowed buy failures after which a sell proposal becomes valid
     uint8 public maxBuyFailures = 2;
+    // The number of blocks to wait before the sell proposal quorum requirements begin to decay
     uint256 public sellLockupBlocks;
+    // The half life of the sell proposal quorum requirements
     uint256 public sellHalfLifeBlocks;
+    // The index of the current election
     uint256 public currElectionIdx;
+    // Mapping from election Idx to data about the election
     mapping(uint256 => Election) public elections;
     VPumpToken public vPumpToken;
-    uint256 public proposalCreationTax = 1 * 10**18;
+    // Fee required in order to create a proposal
+    uint256 public proposalCreationTax = 0.25 * 10**18;
     PumpTreasury public treasury;
+    // The maximum number of allowed proposals per election.
+    uint maxProposalsPerElection = 100;
 
 
     event ProposalCreated(uint16 electionIdx, address tokenAddr);
@@ -143,6 +174,10 @@ contract ElectionManager is Ownable, Initializable {
         require(
             msg.value >= proposalCreationTax,
             "BuyProposal creation tax not met"
+        );
+        require(
+            electionMetadata.proposedTokens.length <= maxProposalsPerElection,
+            "Proposal limit hit"
         );
 
         electionMetadata.validProposals[_tokenAddr] = true;

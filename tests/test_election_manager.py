@@ -19,7 +19,7 @@ def test_create_proposal_wrong_election(election_manager, test_token_1, accounts
 def test_create_proposal_insufficient_value(election_manager, test_token_1, accounts):
     assert len(election_manager.getActiveProposals()) == 1
     with reverts("BuyProposal creation tax not met"):
-        election_manager.createProposal(0, test_token_1, {'from': accounts[0], 'value': 0.9 * 10 ** 18})
+        election_manager.createProposal(0, test_token_1, {'from': accounts[0], 'value': 0.1 * 10 ** 18})
     assert len(election_manager.getActiveProposals()) == 1
 
 
