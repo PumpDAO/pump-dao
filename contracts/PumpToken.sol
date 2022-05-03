@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 
 import "./lib/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-contract PumpToken is Ownable {
+contract PumpToken is Ownable, Initializable {
     using SafeMath for uint256;
 
     string public symbol = "PUMP";
@@ -27,7 +28,7 @@ contract PumpToken is Ownable {
     event Transfer(address indexed from, address to, uint256 value);
     event Approval(address owner, address spender, uint256 value);
 
-    constructor() {
+    function initialize() public initializer {
         balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
     }

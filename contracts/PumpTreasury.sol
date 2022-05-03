@@ -9,8 +9,9 @@ import "./lib/SafeBEP20.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-contract PumpTreasury is Ownable {
+contract PumpTreasury is Ownable, Initializable {
     using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
 
@@ -28,11 +29,11 @@ contract PumpTreasury is Ownable {
         _;
     }
 
-    constructor(
+    function initialize(
         PumpToken _pumpToken,
         address _wBNBAddr,
         address _pancakeRouterAddr
-    ) {
+    ) public initializer {
         pumpToken = _pumpToken;
         pancakeRouter = IPancakeRouter02(_pancakeRouterAddr);
         wBNB = IBEP20(_wBNBAddr);
