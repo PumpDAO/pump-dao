@@ -9,7 +9,6 @@ import "./lib/SafeBEP20.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ElectionManager.sol";
 
 contract PumpTreasury is Ownable {
     using SafeMath for uint256;
@@ -74,8 +73,8 @@ contract PumpTreasury is Ownable {
         uint256 receivedPump = newPump - initialPump;
 
         // Now stake the received PUMP against the remaining BNB
-        _addPumpLiquidity(receivedPump, receivedBNB);
-        emit SellAndStake(_tokenAddr, receivedPump, receivedBNB);
+        _addPumpLiquidity(receivedPump, receivedBNB / 2);
+        emit SellAndStake(_tokenAddr, receivedPump, receivedBNB / 2);
     }
 
     function _addPumpLiquidity(uint256 _pumpAmount, uint256 _bnbAmount) internal {

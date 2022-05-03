@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 // SPDX-License-Identifier: MIT
 
-import "./SafeMath.sol";
+import "../lib/SafeMath.sol";
 
 /**
     @title Bare-bones Token implementation

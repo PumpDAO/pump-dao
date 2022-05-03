@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8;
 
-import "./SafeMath.sol";
+import "./lib/SafeMath.sol";
 import "./lib/SafeBEP20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";

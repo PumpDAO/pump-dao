@@ -105,3 +105,11 @@ def test_token_1(TestToken, accounts):
 @pytest.fixture(scope="module")
 def test_token_2(TestToken, accounts):
     return TestToken.deploy("T2", "T2", 18, 100 * 10**18, {'from': accounts[0]})
+
+
+@pytest.fixture(scope="module")
+def pump_treasury(TestToken, MockPSRouter, PumpTreasury, pump_token, accounts):
+    wbnb = TestToken.deploy("WBNB", "WBNB", 18, 100 * 10**18, {'from': accounts[0]})
+    mock_router = MockPSRouter.deploy({'from': accounts[0]})
+
+    return PumpTreasury.deploy(pump_token, wbnb, mock_router, {'from': accounts[0]})
