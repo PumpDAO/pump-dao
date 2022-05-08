@@ -14,9 +14,7 @@ def get_account(number=None):
         return accounts[0]
     if number:
         return accounts[number]
-    print("AYO: ", network.show_active())
     if network.show_active() in PROD:
-        print("FUCK YOU FINDME")
         return accounts.load('primary')
     return None
 
