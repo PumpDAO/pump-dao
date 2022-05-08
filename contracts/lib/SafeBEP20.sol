@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin-upgradeable/contracts/utils/AddressUpgradeable.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 
 
@@ -16,7 +16,7 @@ import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
  * which allows you to call the safe operations as `token.safeTransfer(...)`, etc.
  */
 library SafeBEP20 {
-    using Address for address;
+    using AddressUpgradeable for address;
 
     function safeTransfer(
         IBEP20 token,

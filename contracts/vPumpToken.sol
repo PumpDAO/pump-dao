@@ -2,17 +2,16 @@
 pragma solidity ^0.8.0;
 
 import "./lib/SafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
 
-contract VPumpToken is Ownable, Initializable {
+contract VPumpToken is OwnableUpgradeable {
     using SafeMath for uint256;
 
-    string public symbol = "VPUMP";
-    string public name = "Voting Pump";
-    uint256 public decimals = 18;
-    uint256 public totalSupply = 0;
+    string public symbol;
+    string public name;
+    uint256 public decimals;
+    uint256 public totalSupply;
     address public canMintBurn;
     address public electionManager;
 
@@ -29,9 +28,14 @@ contract VPumpToken is Ownable, Initializable {
    }
 
    function initialize() public initializer {
-        canMintBurn = msg.sender;
-        balances[msg.sender] = totalSupply;
-        emit Transfer(address(0), msg.sender, totalSupply);
+       symbol = "vPUMP";
+       name = "Voting Pump";
+       decimals = 18;
+       totalSupply = 0;
+       canMintBurn = msg.sender;
+       balances[msg.sender] = totalSupply;
+       emit Transfer(address(0), msg.sender, totalSupply);
+       __Ownable_init();
     }
 
     function setCanMintBurn(address _canMintBurn) public onlyOwner {

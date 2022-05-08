@@ -4,14 +4,14 @@
 pragma solidity ^0.8.0;
 
 import "./TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
 
 /**
  * @dev This is an auxiliary contract meant to be assigned as the admin of a {TransparentUpgradeableProxy}. For an
  * explanation of why you would want to use this see the documentation for {TransparentUpgradeableProxy}.
  */
-contract ProxyAdmin is Ownable {
+contract ProxyAdmin is OwnableUpgradeable {
     /**
      * @dev Returns the current implementation of `proxy`.
      *
