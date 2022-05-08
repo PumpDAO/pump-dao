@@ -4,6 +4,8 @@
 pragma solidity ^0.8.0;
 
 import "./TransparentUpgradeableProxy.sol";
+// We use the non initializable ownable here since this contract is deliberately
+// not put behind a proxy
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 

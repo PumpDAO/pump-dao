@@ -22,7 +22,7 @@ def _deploy_init_vpump(VPumpToken, acct):
 
 def _deploy_init_pool_manager(PoolManager, pump, vpump, pump_per_block, start_block, acct):
     pool_manager = PoolManager.deploy({'from': acct})
-    pool_manager.initialize(pump, vpump, acct, pump_per_block, start_block, {'from': acct})
+    pool_manager.initialize(pump, vpump, pump_per_block, start_block, {'from': acct})
     return pool_manager
 
 

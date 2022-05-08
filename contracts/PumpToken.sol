@@ -3,16 +3,15 @@
 pragma solidity ^0.8.0;
 
 import "./lib/SafeMath.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-contract PumpToken is Ownable, Initializable {
+contract PumpToken is OwnableUpgradeable {
     using SafeMath for uint256;
 
-    string public symbol = "PUMP";
-    string public name = "Pump Token";
-    uint256 public decimals = 18;
-    uint256 public totalSupply = 100 * 10**6 * 10**18;
+    string public symbol;
+    string public name;
+    uint256 public decimals;
+    uint256 public totalSupply;
     address public cannonAddr;
     address public electionManagerAddr;
 
@@ -25,12 +24,17 @@ contract PumpToken is Ownable, Initializable {
     mapping(address => uint256) public balances;
     mapping(address => mapping(address => uint256)) public allowed;
 
-    event Transfer(address indexed from, address to, uint256 value);
-    event Approval(address owner, address spender, uint256 value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 
     function initialize() public initializer {
+        symbol = "PUMP";
+        name = "Pump Token";
+        decimals = 18;
+        totalSupply = 100 * 10**6 * 10**18;
         balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
+        __Ownable_init();
     }
 
     /**

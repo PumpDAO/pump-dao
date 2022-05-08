@@ -8,10 +8,9 @@ import "./PumpToken.sol";
 import "./lib/SafeBEP20.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 
-contract PumpTreasury is Ownable, Initializable {
+contract PumpTreasury is OwnableUpgradeable {
     using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
 
@@ -37,6 +36,7 @@ contract PumpTreasury is Ownable, Initializable {
         pumpToken = _pumpToken;
         pancakeRouter = IPancakeRouter02(_pancakeRouterAddr);
         wBNB = IBEP20(_wBNBAddr);
+        __Ownable_init();
     }
 
     function setElectionManagerAddress(address _addr) public onlyOwner {

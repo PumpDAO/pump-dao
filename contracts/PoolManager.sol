@@ -4,15 +4,14 @@ pragma solidity ^0.8;
 
 import "./lib/SafeMath.sol";
 import "./lib/SafeBEP20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgradeable/contracts/security/ReentrancyGuardUpgradeable.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "./PumpToken.sol";
 import "./vPumpToken.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 
-contract PoolManager is Ownable, ReentrancyGuard, Initializable {
+contract PoolManager is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeMath for uint256;
     using SafeBEP20 for IBEP20;
 
@@ -51,7 +50,7 @@ contract PoolManager is Ownable, ReentrancyGuard, Initializable {
     // Info of each user that stakes LP tokens.
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
-    uint256 public totalAllocPoint = 0;
+    uint256 public totalAllocPoint;
     // The block number when PUMP mining starts.
     uint256 public startBlock;
     mapping(IBEP20 => bool) public poolExistence;
@@ -66,15 +65,17 @@ contract PoolManager is Ownable, ReentrancyGuard, Initializable {
     function initialize(
         PumpToken _pumpToken,
         VPumpToken _vPumpToken,
-        address _devAddr,
         uint256 _pumpPerBlock,
         uint256 _startBlock
     ) public initializer {
         pumpToken = _pumpToken;
         vPumpToken = _vPumpToken;
-        devAddr = _devAddr;
+        devAddr = msg.sender;
         pumpPerBlock = _pumpPerBlock;
         startBlock = _startBlock;
+        totalAllocPoint = 0;
+
+        __Ownable_init();
     }
 
     function poolLength() external view returns (uint256) {

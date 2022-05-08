@@ -2,11 +2,10 @@ pragma solidity ^0.8.0;
 
 import "./PumpToken.sol";
 import "./PumpTreasury.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
 import "./vPumpToken.sol";
 
-contract ElectionManager is Ownable, Initializable {
+contract ElectionManager is OwnableUpgradeable {
     // View only struct -- used to group data returned by view functions
     struct BuyProposalMetadata {
         address proposer;
@@ -97,7 +96,7 @@ contract ElectionManager is Ownable, Initializable {
     // The number of blocks to wait between each buy is made
     uint256 public buyCooldownBlocks;
     // The number of allowed buy failures after which a sell proposal becomes valid
-    uint8 public maxBuyFailures = 2;
+    uint8 public maxBuyFailures;
     // The number of blocks to wait before the sell proposal quorum requirements begin to decay
     uint256 public sellLockupBlocks;
     // The half life of the sell proposal quorum requirements
@@ -108,10 +107,10 @@ contract ElectionManager is Ownable, Initializable {
     mapping(uint256 => Election) public elections;
     VPumpToken public vPumpToken;
     // Fee required in order to create a proposal
-    uint256 public proposalCreationTax = 0.25 * 10**18;
+    uint256 public proposalCreationTax;
     PumpTreasury public treasury;
     // The maximum number of allowed proposals per election.
-    uint8 maxProposalsPerElection = 100;
+    uint8 maxProposalsPerElection;
 
 
     event ProposalCreated(uint16 electionIdx, address tokenAddr);
@@ -135,6 +134,7 @@ contract ElectionManager is Ownable, Initializable {
         uint256 _sellLockupBlocks,
         uint256 _sellHalfLifeBlocks
     ) public initializer {
+        vPumpToken = _vPumpToken;
         winnerDelay = _winnerDelay;
         electionLength = _electionLength;
         defaultProposal = _defaultProposal;
@@ -145,7 +145,11 @@ contract ElectionManager is Ownable, Initializable {
         buyCooldownBlocks = _buyCooldownBlocks;
         sellLockupBlocks = _sellLockupBlocks;
         sellHalfLifeBlocks = _sellHalfLifeBlocks;
+        maxBuyFailures = 2;
+        proposalCreationTax = 0.25 * 10 ** 18;
+        maxProposalsPerElection = 100;
 
+        // Setup the first election data
         Election storage firstElection = elections[0];
         firstElection.votingStartBlock = _startBlock;
         firstElection.votingEndBlock = _startBlock + electionLength - winnerDelay;
@@ -156,6 +160,7 @@ contract ElectionManager is Ownable, Initializable {
         firstElection.proposals[defaultProposal].createdAt = block.number;
         firstElection.proposedTokens.push(defaultProposal);
 
+        __Ownable_init();
     }
 
     function createProposal(uint16 _electionIdx, address _tokenAddr)
