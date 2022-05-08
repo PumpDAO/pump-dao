@@ -11,7 +11,7 @@ from brownie import (
     VPumpToken,
     PoolManager,
 )
-from .util import get_account, encode_function_data_ayo
+from .util import get_account, encode_function_data
 
 # These addresses are the deployed BSC Main addresses.
 PS_SWAP_ROUTER_ADDR = "0x10ED43C718714eb63d5aA57B78B54704E256024E"
@@ -33,8 +33,7 @@ contract_to_name = {
 }
 
 
-def deploy_with_proxy(contract, *args):
-    account = get_account()
+def deploy_with_proxy(account, contract, *args):
     print(f"Deploying to {network.show_active()}")
     implementation = contract.deploy(
         {"from": account, 'required_confs': 3},
@@ -44,7 +43,7 @@ def deploy_with_proxy(contract, *args):
         {"from": account, 'required_confs': 3},
         # publish_source=True,
     )
-    encoded_initializer_function = encode_function_data_ayo(
+    encoded_initializer_function = encode_function_data(
         implementation.initialize, *args
     )
     proxy = TransparentUpgradeableProxy.deploy(
@@ -54,7 +53,6 @@ def deploy_with_proxy(contract, *args):
         {"from": account, 'required_confs': 3},
         # publish_source=True,
     )
-    print()
     print(f"Proxy deployed to {proxy}")
     proxy_abi = Contract.from_abi(contract_to_name[contract], proxy.address, contract.abi)
 
@@ -69,10 +67,12 @@ def deploy_with_proxy(contract, *args):
 
 
 def main():
-    pump = deploy_with_proxy(PumpToken)
-    vpump = deploy_with_proxy(VPumpToken)
+    account = get_account()
+    pump = deploy_with_proxy(account, PumpToken)
+    vpump = deploy_with_proxy(account, VPumpToken)
 
     treasury = deploy_with_proxy(
+        account,
         PumpTreasury,
         pump,
         WBNB_ADDR,
@@ -80,6 +80,7 @@ def main():
     )
 
     election_manager = deploy_with_proxy(
+        account,
         ElectionManager,
         vpump,
         0,  # startBlock
@@ -93,10 +94,11 @@ def main():
         10,  # sellHalflifeBlocks
     )
 
-    treasury.setElectionManagerAddress(election_manager, {'from': get_account()})
-    vpump.setElectionManagerAddress(election_manager, {'from': get_account()})
+    treasury.setElectionManagerAddress(election_manager, {'from': account})
+    vpump.setElectionManagerAddress(election_manager, {'from': account})
 
     pool_manager = deploy_with_proxy(
+        account,
         PoolManager,
         pump,
         vpump,
@@ -104,7 +106,7 @@ def main():
         17523000,  # startBlock
     )
 
-    vpump.setCanMintBurn(pool_manager, {'from': get_account()})
-    pump.transfer(pool_manager, 100_000 * 10**18, {'from': get_account()})
+    vpump.setCanMintBurn(pool_manager, {'from': account})
+    pump.transfer(pool_manager, 100_000 * 10**18, {'from': account})
 
     return pump, vpump, treasury, election_manager, pool_manager

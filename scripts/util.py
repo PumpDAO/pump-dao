@@ -19,7 +19,7 @@ def get_account(number=None):
     return None
 
 
-def encode_function_data_ayo(initializer=None, *args):
+def encode_function_data(initializer=None, *args):
     """Encodes the function call so we can work with an initializer.
 
     Args:
