@@ -37,11 +37,12 @@ def deploy_with_proxy(contract, *args):
     account = get_account()
     print(f"Deploying to {network.show_active()}")
     implementation = contract.deploy(
-        {"from": account},
+        {"from": account, 'required_confs': 3},
         publish_source=True
     )
     proxy_admin = ProxyAdmin.deploy(
-        {"from": account},
+        {"from": account, 'required_confs': 3},
+        # publish_source=True,
     )
     encoded_initializer_function = encode_function_data_ayo(
         implementation.initialize, *args
@@ -50,7 +51,8 @@ def deploy_with_proxy(contract, *args):
         implementation,
         proxy_admin.address,
         encoded_initializer_function,
-        {"from": account},
+        {"from": account, 'required_confs': 3},
+        # publish_source=True,
     )
     print()
     print(f"Proxy deployed to {proxy}")
@@ -105,4 +107,4 @@ def main():
     vpump.setCanMintBurn(pool_manager, {'from': get_account()})
     pump.transfer(pool_manager, 100_000 * 10**18, {'from': get_account()})
 
-    return vpump, treasury
+    return pump, vpump, treasury, election_manager, pool_manager

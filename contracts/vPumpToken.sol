@@ -19,15 +19,15 @@ contract VPumpToken is OwnableUpgradeable {
     mapping(address => uint256) public balances;
     mapping(address => mapping(address => uint256)) public allowed;
 
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 
-   modifier onlyCanMintBurn {
+    modifier onlyCanMintBurn {
       require(msg.sender == canMintBurn, "Must have mintBurn role");
       _;
-   }
+    }
 
-   function initialize() public initializer {
+    function initialize() public initializer {
        symbol = "vPUMP";
        name = "Voting Pump";
        decimals = 18;
