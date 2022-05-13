@@ -12,14 +12,14 @@ contract PumpToken is OwnableUpgradeable {
     string public name;
     uint256 public decimals;
     uint256 public totalSupply;
-    address public cannonAddr;
+    address public treasuryAddr;
     address public electionManagerAddr;
 
     // Stores addresses that are excluded from cannonTax
     // This includes any proposal contract & the 0xDEAD wallet
     mapping(address => bool) private _cannonTaxExcluded;
     // Percent of transaction that goes to cannon
-    uint256 public cannonTax = 3;
+    uint256 public cannonTax;
 
     mapping(address => uint256) public balances;
     mapping(address => mapping(address => uint256)) public allowed;
@@ -32,6 +32,7 @@ contract PumpToken is OwnableUpgradeable {
         name = "Pump Token";
         decimals = 18;
         totalSupply = 100 * 10**6 * 10**18;
+        cannonTax = 3;
         balances[msg.sender] = totalSupply;
         emit Transfer(address(0), msg.sender, totalSupply);
         __Ownable_init();
@@ -84,10 +85,10 @@ contract PumpToken is OwnableUpgradeable {
 
     /**
         @notice Set the address of the PumpCannon
-        @param _cannonAddr The PumpCannon's address
+        @param _treasuryAddr The PumpCannon's address
      */
-    function setCannonAddress(address _cannonAddr) public onlyOwner {
-        cannonAddr = _cannonAddr;
+    function setTreasuryAddr(address _treasuryAddr) public onlyOwner {
+        treasuryAddr = _treasuryAddr;
     }
 
     /**
@@ -154,8 +155,8 @@ contract PumpToken is OwnableUpgradeable {
         emit Transfer(_from, _to, _valueLessTax);
 
         if (tax > 0) {
-            balances[cannonAddr] = balances[cannonAddr] + tax;
-            emit Transfer(_from, cannonAddr, tax);
+            balances[treasuryAddr] = balances[treasuryAddr] + tax;
+            emit Transfer(_from, treasuryAddr, tax);
         }
     }
 

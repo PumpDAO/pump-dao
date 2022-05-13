@@ -22,7 +22,8 @@ def _deploy_init_vpump(VPumpToken, acct):
 
 def _deploy_init_pool_manager(PoolManager, pump, vpump, pump_per_block, start_block, acct):
     pool_manager = PoolManager.deploy({'from': acct})
-    pool_manager.initialize(pump, vpump, pump_per_block, start_block, {'from': acct})
+    pool_manager.initialize(pump, vpump, pump_per_block, {'from': acct})
+    pool_manager.setStartEnd(start_block, 999999999, {'from': acct})
     return pool_manager
 
 
@@ -35,7 +36,6 @@ def _deploy_init_pump_treasury(PumpTreasury, pump, wbnb, router, acct):
 def _deploy_init_election_manager(
         ElectionManager,
         vpump,
-        start_block,
         winner_delay,
         election_length,
         default_proposal,
@@ -44,11 +44,11 @@ def _deploy_init_election_manager(
         buy_cooldown,
         sell_lockup,
         sell_halflife,
+        proposal_creation_tax,
         acct):
     election_manager = ElectionManager.deploy({'from': acct})
     election_manager.initialize(
         vpump,
-        start_block,
         winner_delay,
         election_length,
         default_proposal,
@@ -57,12 +57,11 @@ def _deploy_init_election_manager(
         buy_cooldown,
         sell_lockup,
         sell_halflife,
+        proposal_creation_tax,
+        "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
         {'from': acct}
     )
     return election_manager
-
-
-
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -106,7 +105,6 @@ def election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, ElectionMan
     election_manager = _deploy_init_election_manager(
         ElectionManager,
         vpump_token,
-        0, # startBlock
         10, # winnerDelay
         100, # electionLength
         DEFAULT_TOKEN_ADDR, # default Proposal address
@@ -114,9 +112,11 @@ def election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, ElectionMan
         2,  # _maxNumBuys
         10,  # _buyCooldownBlocks
         10,  # _sellLockupBlocks
-        10,  # _sellHalflifeBlocks
+        10,  # _sellHalflifeBlocks,
+        0.25 * 10 ** 18,  # proposalCreationTax
         accounts[0]
     )
+    election_manager.startFirstElection(0, {'from': accounts[0]})
     pump_treasury.setElectionManagerAddress(election_manager, {'from': accounts[0]})
     vpump_token.setElectionManagerAddress(election_manager, {'from': accounts[0]})
 
@@ -137,7 +137,6 @@ def broken_election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, Elec
     election_manager = _deploy_init_election_manager(
         ElectionManager,
         vpump_token,
-        0,  # startBlock
         10,  # winnerDelay
         100,  # electionLength
         DEFAULT_TOKEN_ADDR,  # default Proposal address
@@ -146,8 +145,10 @@ def broken_election_manager(PumpToken, TestToken, PumpTreasury, VPumpToken, Elec
         10,  # _buyCooldownBlocks
         10,  # _sellLockupBlocks
         10,  # _sellHalflifeBlocks
+        0.25 * 10 ** 18,  # proposalCreationTax
         accounts[0]
     )
+    election_manager.startFirstElection(0, {'from': accounts[0]})
     pump_treasury.setElectionManagerAddress(election_manager, {'from': accounts[0]})
     vpump_token.setElectionManagerAddress(election_manager, {'from': accounts[0]})
 

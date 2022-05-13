@@ -64,6 +64,7 @@ contract ElectionManager is OwnableUpgradeable {
         bool winnerDeclared;
         address winner;
         // Buy related Data
+        uint256 purchasedAmt;
         uint8 numBuysMade;
         uint256 nextValidBuyBlock;
         uint8 numFailures;
@@ -95,8 +96,6 @@ contract ElectionManager is OwnableUpgradeable {
     uint256 public maxNumBuys;
     // The number of blocks to wait between each buy is made
     uint256 public buyCooldownBlocks;
-    // The number of allowed buy failures after which a sell proposal becomes valid
-    uint8 public maxBuyFailures;
     // The number of blocks to wait before the sell proposal quorum requirements begin to decay
     uint256 public sellLockupBlocks;
     // The half life of the sell proposal quorum requirements
@@ -110,7 +109,11 @@ contract ElectionManager is OwnableUpgradeable {
     uint256 public proposalCreationTax;
     PumpTreasury public treasury;
     // The maximum number of allowed proposals per election.
-    uint8 maxProposalsPerElection;
+    uint8 public maxProposalsPerElection;
+    // bool indicating whether or not the first election has started
+    bool public electionsStarted;
+    // Convenience function to retrieve where a users
+    address public wBNBAddr;
 
 
     event ProposalCreated(uint16 electionIdx, address tokenAddr);
@@ -120,11 +123,11 @@ contract ElectionManager is OwnableUpgradeable {
     event SellVoteWithdrawn(uint16 electionIdx, address tokenAddr, uint256 amt);
     event WinnerDeclared(uint16 electionIdx, address winner, uint256 numVotes);
     event SellProposalExecuted(uint16 electionIdx);
+    event ExecuteBuyProposal(uint16 electionIdx, bool success);
 
     // Initialize takes the place of constructor in order to use a proxy pattern to upgrade later
     function initialize(
         VPumpToken _vPumpToken,
-        uint256 _startBlock,
         uint256 _winnerDelay,
         uint256 _electionLength,
         address _defaultProposal,
@@ -132,7 +135,9 @@ contract ElectionManager is OwnableUpgradeable {
         uint256 _maxNumBuys,
         uint256 _buyCooldownBlocks,
         uint256 _sellLockupBlocks,
-        uint256 _sellHalfLifeBlocks
+        uint256 _sellHalfLifeBlocks,
+        uint256 _proposalCreationTax,
+        address _wBNBAddr
     ) public initializer {
         vPumpToken = _vPumpToken;
         winnerDelay = _winnerDelay;
@@ -145,10 +150,16 @@ contract ElectionManager is OwnableUpgradeable {
         buyCooldownBlocks = _buyCooldownBlocks;
         sellLockupBlocks = _sellLockupBlocks;
         sellHalfLifeBlocks = _sellHalfLifeBlocks;
-        maxBuyFailures = 2;
-        proposalCreationTax = 0.25 * 10 ** 18;
-        maxProposalsPerElection = 100;
+        proposalCreationTax = _proposalCreationTax;
+        maxProposalsPerElection = 50;
+        wBNBAddr = _wBNBAddr;
 
+        __Ownable_init();
+    }
+
+    function startFirstElection(uint256 _startBlock) public onlyOwner {
+        require(!electionsStarted, "Election already started");
+        electionsStarted = true;
         // Setup the first election data
         Election storage firstElection = elections[0];
         firstElection.votingStartBlock = _startBlock;
@@ -159,8 +170,6 @@ contract ElectionManager is OwnableUpgradeable {
         firstElection.proposals[defaultProposal].proposer = address(this);
         firstElection.proposals[defaultProposal].createdAt = block.number;
         firstElection.proposedTokens.push(defaultProposal);
-
-        __Ownable_init();
     }
 
     function createProposal(uint16 _electionIdx, address _tokenAddr)
@@ -177,6 +186,10 @@ contract ElectionManager is OwnableUpgradeable {
             "Proposal already created"
         );
         require(
+            block.number < electionMetadata.votingEndBlock,
+            "Voting has ended"
+        );
+        require(
             msg.value >= proposalCreationTax,
             "BuyProposal creation tax not met"
         );
@@ -184,6 +197,12 @@ contract ElectionManager is OwnableUpgradeable {
             electionMetadata.proposedTokens.length <= maxProposalsPerElection,
             "Proposal limit hit"
         );
+        require(
+            _tokenAddr != wBNBAddr,
+            "Cant propose wBNB"
+        );
+
+        treasury.deposit{value: msg.value}();
 
         electionMetadata.validProposals[_tokenAddr] = true;
         electionMetadata.proposals[_tokenAddr].proposer = msg.sender;
@@ -205,7 +224,7 @@ contract ElectionManager is OwnableUpgradeable {
         Election storage electionMetadata = elections[currElectionIdx];
         require(
             block.number <= electionMetadata.votingEndBlock,
-            "Voting has already ended"
+            "Voting has ended"
         );
         require(
             electionMetadata.validProposals[_tokenAddr],
@@ -312,7 +331,7 @@ contract ElectionManager is OwnableUpgradeable {
         require(electionData.winnerDeclared, "Winner not declared");
         require(electionData.numBuysMade < maxNumBuys, "Can't exceed maxNumBuys");
         require(electionData.nextValidBuyBlock <= block.number, "Must wait before executing");
-        require(electionData.numFailures < maxBuyFailures, "Max fails exceeded");
+        require(electionData.numFailures < 3, "Max fails exceeded");
         require(!electionData.sellProposalActive, "Sell Proposal already active");
 
         try treasury.buyProposedToken(electionData.winner) returns (uint256 _purchasedAmt) {
@@ -325,14 +344,18 @@ contract ElectionManager is OwnableUpgradeable {
                 electionData.sellProposalActive = true;
                 electionData.sellProposalCreatedAt = block.number;
             }
+            emit ExecuteBuyProposal(_electionIdx, true);
             return true;
         } catch Error(string memory) {
             electionData.numFailures += 1;
+            electionData.nextValidBuyBlock = block.number + buyCooldownBlocks;
             // If we've exceeded the number of allowed failures
-            if (electionData.numFailures >= maxBuyFailures) {
+            if (electionData.numFailures >= 3) {
+                electionData.nextValidBuyBlock = block.number + buyCooldownBlocks;
                 electionData.sellProposalActive = true;
                 electionData.sellProposalCreatedAt = block.number;
             }
+            emit ExecuteBuyProposal(_electionIdx, false);
             return false;
         }
 
@@ -366,9 +389,9 @@ contract ElectionManager is OwnableUpgradeable {
         );
         BuyProposal storage proposal = elections[_electionIdx].proposals[_tokenAddr];
         return BuyProposalMetadata({
-        proposer: proposal.proposer,
-        createdAt: proposal.createdAt,
-        totalVotes: proposal.totalVotes
+            proposer: proposal.proposer,
+            createdAt: proposal.createdAt,
+            totalVotes: proposal.totalVotes
         });
     }
 
@@ -378,18 +401,29 @@ contract ElectionManager is OwnableUpgradeable {
         require(_electionIdx <= currElectionIdx, "Can't query future election");
         Election storage election = elections[_electionIdx];
         return ElectionMetadata({
-        votingStartBlock: election.votingStartBlock,
-        votingEndBlock: election.votingEndBlock,
-        winnerDeclaredBlock: election.winnerDeclaredBlock,
-        winnerDeclared: election.winnerDeclared,
-        winner: election.winner,
-        numBuysMade: election.numBuysMade,
-        nextValidBuyBlock: election.nextValidBuyBlock,
-        numFailures: election.numFailures,
-        sellProposalActive: election.sellProposalActive,
-        sellProposalTotalVotes: election.sellProposalTotalVotes,
-        sellProposalCreatedAt: election.sellProposalCreatedAt
+            votingStartBlock: election.votingStartBlock,
+            votingEndBlock: election.votingEndBlock,
+            winnerDeclaredBlock: election.winnerDeclaredBlock,
+            winnerDeclared: election.winnerDeclared,
+            winner: election.winner,
+            purchasedAmt: election.purchasedAmt,
+            numBuysMade: election.numBuysMade,
+            nextValidBuyBlock: election.nextValidBuyBlock,
+            numFailures: election.numFailures,
+            sellProposalActive: election.sellProposalActive,
+            sellProposalTotalVotes: election.sellProposalTotalVotes,
+            sellProposalCreatedAt: election.sellProposalCreatedAt
         });
+    }
+
+    function getBuyVotes(uint16 _electionIdx, address _proposal, address _voter) public view returns (uint256) {
+        Election storage election = elections[_electionIdx];
+        return election.proposals[_proposal].votes[_voter];
+    }
+
+    function getSellVotes(uint16 _electionIdx, address _voter) public view returns (uint256) {
+        Election storage election = elections[_electionIdx];
+        return election.sellVotes[_voter];
     }
 
     function _getRequiredSellVPump(uint256 _startBlock) public view returns (uint256) {

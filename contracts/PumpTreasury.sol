@@ -6,6 +6,7 @@ pragma abicoder v2;
 import "./ElectionManager.sol";
 import "./PumpToken.sol";
 import "./lib/SafeBEP20.sol";
+import "./lib/IWBNB.sol";
 import "@pancake-swap-lib/contracts/token/BEP20/IBEP20.sol";
 import "@pancake-swap-periphery/contracts/interfaces/IPancakeRouter02.sol";
 import "@openzeppelin-upgradeable/contracts/access/OwnableUpgradeable.sol";
@@ -16,12 +17,13 @@ contract PumpTreasury is OwnableUpgradeable {
 
     PumpToken public pumpToken;
     IPancakeRouter02 public pancakeRouter;
-    IBEP20 public wBNB;
+    IWBNB public wBNB;
     address public electionMangerAddr;
 
     event TreasurySwap(address _caller, uint256 _amount);
     event BuyProposedToken(address _tokenAddress, uint256 _wBNBAmt);
     event SellAndStake(address _tokenSold, uint256 _pumpStaked, uint256 _bnbStaked);
+    event Deposit(address _sender, uint256 _amt);
 
     modifier onlyElectionManager() {
         require(electionMangerAddr == msg.sender, "Caller is not ElectionManager");
@@ -30,12 +32,12 @@ contract PumpTreasury is OwnableUpgradeable {
 
     function initialize(
         PumpToken _pumpToken,
-        address _wBNBAddr,
+        address payable _wBNBAddr,
         address _pancakeRouterAddr
     ) public initializer {
         pumpToken = _pumpToken;
         pancakeRouter = IPancakeRouter02(_pancakeRouterAddr);
-        wBNB = IBEP20(_wBNBAddr);
+        wBNB = IWBNB(_wBNBAddr);
         __Ownable_init();
     }
 
@@ -61,10 +63,10 @@ contract PumpTreasury is OwnableUpgradeable {
     }
 
     function sellProposedToken(address _tokenAddr, uint256 _amt) public onlyElectionManager {
-        // First sell the position and record how much BNB we receive for it
-        uint256 initialBalance = address(this).balance;
+        // First sell the position and record how much wBNB we receive for it
+        uint256 initialBalance = wBNB.balanceOf(address(this));
         _performSwap(_tokenAddr, address(wBNB), _amt);
-        uint256 newBalance = address(this).balance;
+        uint256 newBalance = wBNB.balanceOf(address(this));
         uint256 receivedBNB = newBalance - initialBalance;
 
         // Now, use half the BNB to buy PUMP -- also recording how much PUMP we receive
@@ -78,18 +80,31 @@ contract PumpTreasury is OwnableUpgradeable {
         emit SellAndStake(_tokenAddr, receivedPump, receivedBNB / 2);
     }
 
+    function deposit() public payable {
+        wrapBNB(msg.value);
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    function wrapBNB(uint256 _amt) public {
+        require(address(this).balance >= _amt, "Not enough BNB");
+        wBNB.deposit{value: _amt}();
+    }
+
     function _addPumpLiquidity(uint256 _pumpAmount, uint256 _bnbAmount) internal {
         // add the liquidity
-        pancakeRouter.addLiquidityETH{value: _bnbAmount}(
+        wBNB.approve(address(pancakeRouter), _bnbAmount);
+        pumpToken.approve(address(pancakeRouter), _pumpAmount);
+        pancakeRouter.addLiquidity(
             address(pumpToken),
+            address(wBNB),
             _pumpAmount,
+            _bnbAmount,
             0, // slippage is unavoidable
             0, // slippage is unavoidable
             address(this),
             block.timestamp
         );
     }
-
 
     function _performSwap(
         address tokenIn,
