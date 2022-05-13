@@ -51,8 +51,12 @@ contract PoolManager is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
     // Total allocation points. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint;
+    // Bool indicating whether the start and end blocks have been set.
+    bool public startEndSet;
     // The block number when PUMP mining starts.
     uint256 public startBlock;
+    // The block number when PUMP mining can be publicly shut off
+    uint256 public endBlock;
     mapping(IBEP20 => bool) public poolExistence;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -65,21 +69,15 @@ contract PoolManager is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     function initialize(
         PumpToken _pumpToken,
         VPumpToken _vPumpToken,
-        uint256 _pumpPerBlock,
-        uint256 _startBlock
+        uint256 _pumpPerBlock
     ) public initializer {
         pumpToken = _pumpToken;
         vPumpToken = _vPumpToken;
         devAddr = msg.sender;
         pumpPerBlock = _pumpPerBlock;
-        startBlock = _startBlock;
         totalAllocPoint = 0;
 
         __Ownable_init();
-    }
-
-    function poolLength() external view returns (uint256) {
-        return poolInfo.length;
     }
 
     // View function to see pending PUMP on frontend.
@@ -99,6 +97,7 @@ contract PoolManager is OwnableUpgradeable, ReentrancyGuardUpgradeable {
 
     // Add a new lp to the pool. Can only be called by the owner.
     function add(uint256 _allocPoint, IBEP20 _lpToken, bool _withUpdate) public onlyOwner {
+        require(startEndSet, "Not yet initialized");
         require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
         if (_withUpdate) {
             massUpdatePools();
@@ -112,6 +111,13 @@ contract PoolManager is OwnableUpgradeable, ReentrancyGuardUpgradeable {
             lastRewardBlock : lastRewardBlock,
             accPumpPerShare : 0
         }));
+    }
+
+    function setStartEnd(uint256 _start, uint256 _end) public onlyOwner {
+        require(!startEndSet, "Already set");
+        startEndSet = true;
+        startBlock = _start;
+        endBlock = _end;
     }
 
     // Update the given pool's PUMP allocation point and deposit fee. Can only be called by the owner.
@@ -194,6 +200,13 @@ contract PoolManager is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         emit UpdateEmissionRate(msg.sender, _pumpPerBlock);
     }
 
+    function endEmission() public {
+        require(block.number >= endBlock, "Must wait to end farming");
+        massUpdatePools();
+        pumpPerBlock = 0;
+        emit UpdateEmissionRate(msg.sender, 0);
+    }
+
     // Update dev address by the previous dev.
     function dev(address _devAddr) public {
         require(msg.sender == devAddr, "dev: wut?");
@@ -223,5 +236,4 @@ contract PoolManager is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         }
         require(transferSuccess, "transfer failed");
     }
-
 }
