@@ -16,6 +16,7 @@ def get_account(number=None):
         return accounts[number]
     if network.show_active() in PROD:
         return accounts.load('nico-bsc')
+        # return accounts.load('primary')
     return None
 
 

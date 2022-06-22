@@ -22,3 +22,12 @@ PoolManager:
 impl: 0xD358178F56bb7611F9Ba3D988d5cfaC85bACB6Ba
 proxy_admin: 0xE054d96041C98AF7BA9e006bbd56f436bBEC3d46
 proxy: 0x10dA54300307A14B396b849f40416E3bC55f63f9
+
+
+//////////////////////////////////////////////////////
+Upgrading PumpToken -> PumpTokenV2 in order to implement pinkSale anti snipe
+
+PumpTokenV2:
+impl: 0x300A660ae16A0b4d032e1ce4F02Db387a5d071A0
+proxy_admin: 0x6FAaAED1cCc4882d2Fe2a3dcdD7F091DC609BCc4
+proxy: 0xe9d9D72691a8929d6AEdA5b44F2BC12C2ff1235E
